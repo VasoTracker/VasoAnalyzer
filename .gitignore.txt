@@ -1,0 +1,22 @@
+
+```plaintext
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.env/
+.venv/
+
+# MacOS system files
+.DS_Store
+
+# Output / export files
+*.tiff
+*.png
+*.jpg
+*.fig.pickle
+eventDiameters_output.csv
+tracePlot_output.fig.pickle
