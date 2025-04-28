@@ -1,6 +1,8 @@
+
 # VasoAnalyzer 2.0
 
-[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer.2.0.zip)
+[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
+[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_Windows.zip)
 
 ✨ *Bladder Vasculature Analysis Toolkit (Python Edition)* ✨  
 Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University
@@ -28,17 +30,21 @@ Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan Sta
 
 ## 🚀 Installation
 
-### Option 1: Standalone macOS App  
-✅ *No Python installation required!*
+### Option 1: Standalone Apps (No Python Required)
 
 - [⬇️ Download VasoAnalyzer v2.0.0 for macOS](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
+- [⬇️ Download VasoAnalyzer v2.0.0 for Windows](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_Windows.zip)
 
 After downloading:
-- Unzip the file.
-- Open `VasoAnalyzer.app`.
-- If a security warning appears, **right-click the app → Open** to bypass macOS Gatekeeper.
+- **macOS**:
+  - Unzip the file.
+  - Open `VasoAnalyzer.app`.
+  - If a security warning appears, right-click the app and select **Open** to bypass Gatekeeper.
+- **Windows**:
+  - Unzip the file.
+  - Open `VasoAnalyzer.exe`.
 
-> Works on both **Intel** and **Apple Silicon** Macs!
+> macOS version works on **Intel** and **Apple Silicon** Macs!
 
 ---
 
@@ -50,6 +56,11 @@ git clone https://github.com/vr-oj/VasoAnalyzer_2.0.git
 
 # Navigate into the folder
 cd VasoAnalyzer_2.0
+
+# (Optional) Create a virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # macOS/Linux
 
 # Install dependencies
 pip install -r requirements.txt
@@ -83,12 +94,13 @@ After launching:
 VasoAnalyzer_2.0/
 │
 ├── main.py                 # Main launcher
-├── vasotracker_ui.py        # App layout and UI logic
-├── trace_loader.py          # Trace file loader
-├── event_loader.py          # Event file handler
-├── snapshot_loader.py       # TIFF snapshot handler
-├── plot_handler.py          # Interactive plotting functions
-├── utils.py                 # Helper utilities
+├── vasoanalyzer/            # App logic and modules
+│   ├── vasotracker_ui.py
+│   ├── plot_handler.py
+│   ├── trace_loader.py
+│   ├── event_loader.py
+│   ├── snapshot_loader.py
+│   └── utils.py
 ├── requirements.txt         # Python package list
 └── README.md                # (this file)
 ```
@@ -104,7 +116,6 @@ For other uses, please contact the **Tykocki Lab**.
 
 ## 👨‍🔬 Acknowledgements
 
-Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University.
+Developed with passion by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University.
 
 ---
-
