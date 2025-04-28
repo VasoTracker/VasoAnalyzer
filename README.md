@@ -1,17 +1,15 @@
-
 # VasoAnalyzer 2.0
 
+[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
+
 ✨ *Bladder Vasculature Analysis Toolkit (Python Edition)* ✨  
-Developed by **Osvaldo Vega Rodríguez** at the **Tykocki Lab**, University of Michigan
+Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University
 
 ---
 
 ## 🌟 Overview
 
-**VasoAnalyzer 2.0** is a lightweight Python desktop application for visualizing, annotating, and analyzing vascular pressure myography trace data.  
-It seamlessly synchronizes vessel diameter traces with snapshot frames, automates event-based diameter extraction, and simplifies data export.
-
-Originally built to support research in the Tykocki Lab, this version modernizes the previous MATLAB-based workflow into a clean, standalone Python platform.
+**VasoAnalyzer 2.0** is a lightweight Python desktop application for visualizing, annotating, and analyzing vascular pressure myography trace data. It automates event-based diameter extraction, and simplifies data export.
 
 ---
 
@@ -21,13 +19,10 @@ Originally built to support research in the Tykocki Lab, this version modernizes
 - **Display event markers** from `.csv` or `.txt` files
 - **View synchronized snapshots** from experiment TIFF files
 - **Interactive trace plot** with zoom, pan, and auto-positioned event labels
-- **Slider-controlled snapshot viewer** aligned to trace timeline
 - **One-click export**:
   - Event-based diameter tables (`eventDiameters_output.csv`)
   - Editable trace plots (`tracePlot_output.fig.pickle`)
 - **Modern, responsive UI** (PyQt5 + Matplotlib)
-- **Clean, framed light theme** for publication-ready visuals
-- **Fast performance** even with large datasets
 
 ---
 
@@ -109,6 +104,7 @@ For other uses, please contact the **Tykocki Lab**.
 
 ## 👨‍🔬 Acknowledgements
 
-Developed with passion by **Osvaldo Vega Rodríguez** at the **Tykocki Lab**, University of Michigan.
+Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University.
 
 ---
+
