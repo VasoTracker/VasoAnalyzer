@@ -1,102 +1,114 @@
+
 # VasoAnalyzer 2.0
 
-**Bladder Vasculature Analysis Toolkit (Python Edition)**  
-Developed by Osvaldo Vega Rodríguez in the Tykocki Lab.
+✨ *Bladder Vasculature Analysis Toolkit (Python Edition)* ✨  
+Developed by **Osvaldo Vega Rodríguez** at the **Tykocki Lab**, University of Michigan
 
 ---
 
-## Overview
+## 🌟 Overview
 
-VasoAnalyzer 2.0 is a lightweight Python desktop application for visualizing, annotating, and analyzing vascular pressure myography trace data.  
-It provides synchronized display of vessel diameter traces alongside snapshot frames, automatic event-based diameter extraction, and seamless export of results.
+**VasoAnalyzer 2.0** is a lightweight Python desktop application for visualizing, annotating, and analyzing vascular pressure myography trace data.  
+It seamlessly synchronizes vessel diameter traces with snapshot frames, automates event-based diameter extraction, and simplifies data export.
 
-Originally built to support research in the Tykocki Lab, this version modernizes the previous MATLAB-based pipeline into a clean, standalone Python workflow.
+Originally built to support research in the Tykocki Lab, this version modernizes the previous MATLAB-based workflow into a clean, standalone Python platform.
 
 ---
 
-## Key Features
+## ⚙️ Key Features
 
 - **Load and visualize** pressure myography traces (`.csv` format)
-- **Load event annotation** files (`.csv` or `.txt`) and display event markers
-- **Load snapshot files** (`_Result.tiff`) associated with the experiment
-- **Interactive trace plot** with zoom, pan, axis scaling, and event label auto-positioning
-- **Linked snapshot viewer** controlled by a synchronized slider
-- **Auto-export**:
-  - Event diameter tables (`eventDiameters_output.csv`)
+- **Display event markers** from `.csv` or `.txt` files
+- **View synchronized snapshots** from experiment TIFF files
+- **Interactive trace plot** with zoom, pan, and auto-positioned event labels
+- **Slider-controlled snapshot viewer** aligned to trace timeline
+- **One-click export**:
+  - Event-based diameter tables (`eventDiameters_output.csv`)
   - Editable trace plots (`tracePlot_output.fig.pickle`)
-- **Modern, responsive UI** built with PyQt5 and Matplotlib
-- **Light theme** with framed panels for a clean, publication-ready look
-- **Fast loading** even with large TIFF stacks and long traces
+- **Modern, responsive UI** (PyQt5 + Matplotlib)
+- **Clean, framed light theme** for publication-ready visuals
+- **Fast performance** even with large datasets
 
 ---
 
-## Installation
+## 🚀 Installation
 
-### Requirements
+### Option 1: Standalone macOS App  
+✅ *No Python installation required!*
 
-- Python 3.10+
-- PyQt5
-- Matplotlib
-- Pandas
-- Tifffile
-- OpenCV-python (optional, for enhanced TIFF compatibility)
+- [⬇️ Download VasoAnalyzer v2.0.0 for macOS](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
 
-### Setup
+After downloading:
+- Unzip the file.
+- Open `VasoAnalyzer.app`.
+- If a security warning appears, **right-click the app → Open** to bypass macOS Gatekeeper.
 
-Clone the repository and install dependencies:
+> Works on both **Intel** and **Apple Silicon** Macs!
+
+---
+
+### Option 2: Run from Source (Python 3.10+ Required)
 
 ```bash
+# Clone the repository
 git clone https://github.com/vr-oj/VasoAnalyzer_2.0.git
+
+# Navigate into the folder
 cd VasoAnalyzer_2.0
+
+# Install dependencies
 pip install -r requirements.txt
-```
 
----
-
-## Usage
-
-Launch the application:
-
-```bash
+# Launch the app
 python main.py
 ```
 
-Upon opening:
+---
 
-1. **Load Trace File**: Select your `.csv` trace file containing diameter measurements.
-2. **Load Event File**: Select your `.csv` or `.txt` file with event labels and timings.
-3. **Load Snapshot File** (optional): Select a multi-frame `.tiff` file containing experiment snapshots.
-4. **Explore the Data**:
-   - Use the interactive trace plot to inspect vessel behavior over time.
-   - Scroll through snapshots using the slider, synchronized to the trace timeline.
-   - Click on events in the table to jump directly to their corresponding location on the trace.
+## 🎯 Usage Guide
+
+After launching:
+
+1. **Load Trace File**: Import your `.csv` file containing diameter traces.
+2. **Load Event File**: Select your `.csv` or `.txt` file with event timings and labels.
+3. **Load Snapshot File** *(optional)*: Choose a multi-frame `.tiff` image sequence.
+4. **Explore**:
+   - Inspect vessel behavior via an interactive trace plot.
+   - Scroll through synchronized snapshots with the slider.
+   - Click table events to jump directly to key trace locations.
 5. **Export Results**:
-   - Save an event-based diameter table (`eventDiameters_output.csv`) ready for statistical analysis.
-   - Save the interactive trace figure as a `.fig.pickle` for future editing.
+   - Save the event-based diameter table (`eventDiameters_output.csv`).
+   - Save an editable trace figure (`tracePlot_output.fig.pickle`).
 
 ---
 
-## File Structure
+## 🗂️ File Structure
 
 ```
 VasoAnalyzer_2.0/
 │
-├── main.py                 # Main launcher for the app
-├── vasotracker_ui.py       # App logic and UI layout
-├── trace_loader.py         # Trace data loader
-├── event_loader.py         # Event file handler
-├── snapshot_loader.py      # TIFF snapshot handler
-├── plot_handler.py         # Interactive plotting functions
-├── utils.py                # Helper functions
-├── requirements.txt        # Python dependencies
-└── README.md               # You are here!
+├── main.py                 # Main launcher
+├── vasotracker_ui.py        # App layout and UI logic
+├── trace_loader.py          # Trace file loader
+├── event_loader.py          # Event file handler
+├── snapshot_loader.py       # TIFF snapshot handler
+├── plot_handler.py          # Interactive plotting functions
+├── utils.py                 # Helper utilities
+├── requirements.txt         # Python package list
+└── README.md                # (this file)
 ```
 
 ---
 
-## License
+## 🛡️ License
 
 This project is licensed for **non-commercial academic research use**.  
-For other uses, please contact the Tykocki Lab.
+For other uses, please contact the **Tykocki Lab**.
+
+---
+
+## 👨‍🔬 Acknowledgements
+
+Developed with passion by **Osvaldo Vega Rodríguez** at the **Tykocki Lab**, University of Michigan.
 
 ---
