@@ -5,6 +5,20 @@ import numpy as np
 import pandas as pd
 import tifffile
 import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib import rcParams
+
+# ===== Matplotlib Dialog Style Patch =====
+rcParams.update({
+    'axes.labelcolor': 'black',
+    'xtick.color': 'black',
+    'ytick.color': 'black',
+    'text.color': 'black',
+    'figure.facecolor': 'white',
+    'figure.edgecolor': 'white',
+    'savefig.facecolor': 'white',
+    'savefig.edgecolor': 'white',
+})
 import pickle
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QPushButton, QFileDialog,
@@ -27,6 +41,12 @@ class VasoAnalyzerApp(QMainWindow):
         super().__init__()
         icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer_icon.png')
         self.setWindowIcon(QIcon(icon_path))
+
+        self.setStyleSheet("""
+            QPushButton {
+                color: black;
+            }
+        """)
 
         # ===== Setup App Window =====
         self.setWindowTitle("VasoAnalyzer 2.0 - Python Edition")
@@ -104,6 +124,7 @@ class VasoAnalyzerApp(QMainWindow):
         self.event_table = QTableWidget()
         self.event_table.setColumnCount(3)
         self.event_table.setHorizontalHeaderLabels(["Event", "Time (s)", "ID (µm)"])
+        self.event_table.setColumnWidth(0, 180)
         self.event_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.event_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.event_table.setStyleSheet("background-color: white; color: black;")
