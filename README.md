@@ -1,6 +1,6 @@
 # VasoAnalyzer 2.0
 
-[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
+[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer.2.0.zip)
 
 ✨ *Bladder Vasculature Analysis Toolkit (Python Edition)* ✨  
 Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University
