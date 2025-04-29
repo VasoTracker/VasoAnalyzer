@@ -43,7 +43,7 @@ def fix_matplotlib_dialogs():
                     color: black;
                 }
             """)
-
+            
 class VasoAnalyzerLauncher:
     def __init__(self):
         self.app = QApplication(sys.argv)

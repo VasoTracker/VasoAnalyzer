@@ -102,10 +102,19 @@ class VasoAnalyzerApp(QMainWindow):
         # ===== Plot (Matplotlib) =====
         self.fig = Figure(figsize=(8, 4), facecolor='white')
         self.canvas = FigureCanvas(self.fig)
+
         self.ax = self.fig.add_subplot(111)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.toolbar.setStyleSheet("background-color: #F5F5F5; border: none;")
-
+        
+        # ===== Improve Toolbar Tooltips =====
+        self.toolbar.actions()[0].setToolTip('Home: Reset to original view')
+        self.toolbar.actions()[1].setToolTip('Back: Previous view')
+        self.toolbar.actions()[2].setToolTip('Forward: Next view')
+        self.toolbar.actions()[3].setToolTip('Pan: Click to enable dragging')
+        self.toolbar.actions()[4].setToolTip('Zoom: Click to enable zoom into areas')
+        self.toolbar.actions()[5].setToolTip('Customize plot settings')
+       
         # ===== Snapshot Viewer =====
         self.snapshot_label = QLabel("Snapshot will appear here")
         self.snapshot_label.setAlignment(Qt.AlignCenter)
@@ -333,5 +342,3 @@ class VasoAnalyzerApp(QMainWindow):
         with open(pickle_path, 'wb') as f:
             pickle.dump(self.fig, f)
         print(f"✔ Editable trace figure saved to:\n{pickle_path}")
-
-
