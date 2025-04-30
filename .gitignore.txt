@@ -1,22 +1,9 @@
-
-```plaintext
-# Byte-compiled / optimized / DLL files
+# === Ignore build output ===
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Virtual environments
-.env/
-.venv/
-
-# MacOS system files
-.DS_Store
-
-# Output / export files
-*.tiff
-*.png
-*.jpg
-*.fig.pickle
-eventDiameters_output.csv
-tracePlot_output.fig.pickle
+dist/
+build/
+*.spec
+*.app
+*.exe
+*.zip
+*.pickle
