@@ -1,1 +1,22 @@
 .DS_Store
+src/build/VasoAnalyzer_2.1/base_library.zip
+src/build/VasoAnalyzer_2.1/BUNDLE-00.toc
+src/build/VasoAnalyzer_2.1/EXE-00.toc
+src/build/VasoAnalyzer_2.1/generated-cfa269304fb5e90205eb6c0c2cb6537e3d56d1073ffed2c5793874ab69b194f3.icns
+src/build/VasoAnalyzer_2.1/localpycs/pyimod01_archive.pyc
+src/build/VasoAnalyzer_2.1/localpycs/pyimod02_importers.pyc
+src/build/VasoAnalyzer_2.1/localpycs/pyimod03_ctypes.pyc
+src/build/VasoAnalyzer_2.1/localpycs/struct.pyc
+src/build/VasoAnalyzer_2.1/PKG-00.toc
+src/build/VasoAnalyzer_2.1/PYZ-00.pyz
+src/build/VasoAnalyzer_2.1/PYZ-00.toc
+src/build/VasoAnalyzer_2.1/qt.conf
+src/build/VasoAnalyzer_2.1/VasoAnalyzer_2.1.pkg
+src/build/VasoAnalyzer_2.1/warn-VasoAnalyzer_2.1.txt
+src/build/VasoAnalyzer_2.1/xref-VasoAnalyzer_2.1.html
+src/dist/VasoAnalyzer_2.1
+src/dist/VasoAnalyzer_2.1 for macOS.zip
+src/dist/VasoAnalyzer_2.1.app/Contents/Info.plist
+src/dist/VasoAnalyzer_2.1.app/Contents/MacOS/VasoAnalyzer_2.1
+src/dist/VasoAnalyzer_2.1.app/Contents/Resources/generated-cfa269304fb5e90205eb6c0c2cb6537e3d56d1073ffed2c5793874ab69b194f3.icns
+src/VasoAnalyzer_2.1.spec
