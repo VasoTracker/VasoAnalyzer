@@ -45,7 +45,7 @@ class VasoAnalyzerApp(QMainWindow):
 		""")
 
 		# ===== Setup App Window =====
-		self.setWindowTitle("VasoAnalyzer 2.0 - Python Edition")
+		self.setWindowTitle("VasoAnalyzer 2.1 - Python Edition")
 		self.setGeometry(100, 100, 1280, 720)
 
 		# ===== Initialize State =====
@@ -148,6 +148,11 @@ class VasoAnalyzerApp(QMainWindow):
 		spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 		self.toolbar.addWidget(spacer)
 		self.toolbar.addWidget(self.trace_file_label)
+		self.toolbar.addSeparator()
+		style_button = QPushButton("Plot Style Editor…")
+		style_button.setStyleSheet("background-color: white; padding: 4px;")
+		style_button.clicked.connect(self.open_plot_style_editor)
+		self.toolbar.addWidget(style_button)
 	
 		# Fix toolbar tooltips
 		visible_buttons = [a for a in self.toolbar.actions() if not a.icon().isNull()]
@@ -243,7 +248,12 @@ class VasoAnalyzerApp(QMainWindow):
 		left_layout.addWidget(self.toolbar)
 		left_layout.addLayout(plot_with_slider_layout)
 	
-		right_layout.addWidget(self.snapshot_label)
+		# Create a vertical layout to group TIFF snapshot + its slider
+		snapshot_with_slider_layout = QVBoxLayout()
+		snapshot_with_slider_layout.addWidget(self.snapshot_label)
+		snapshot_with_slider_layout.addWidget(self.slider)
+		
+		right_layout.addLayout(snapshot_with_slider_layout)
 		right_layout.addWidget(self.event_table)
 	
 		top_layout.addLayout(left_layout, 4)
@@ -252,7 +262,6 @@ class VasoAnalyzerApp(QMainWindow):
 		bottom_layout.addWidget(self.load_trace_button)
 		bottom_layout.addWidget(self.load_events_button)
 		bottom_layout.addWidget(self.load_snapshot_button)
-		bottom_layout.addWidget(self.slider)
 		bottom_layout.addWidget(self.save_hr_button)
 	
 		main_layout.addLayout(top_layout)
@@ -297,7 +306,13 @@ class VasoAnalyzerApp(QMainWindow):
 		file_path, _ = QFileDialog.getOpenFileName(self, "Open Result TIFF", "", "TIFF Files (*.tif *.tiff)")
 		if file_path:
 			try:
-				self.snapshot_frames = load_tiff(file_path)
+				frames = load_tiff(file_path)
+				valid_frames = [f for f in frames if f is not None and f.size > 0]
+	
+				if len(valid_frames) < len(frames):
+					QMessageBox.warning(self, "TIFF Warning", "Some TIFF frames were empty or corrupted and were skipped.")
+	
+				self.snapshot_frames = valid_frames
 				if self.snapshot_frames:
 					self.display_frame(0)
 					self.slider.setMaximum(len(self.snapshot_frames) - 1)
@@ -307,11 +322,24 @@ class VasoAnalyzerApp(QMainWindow):
 					self.slider_marker = None
 			except Exception as e:
 				QMessageBox.critical(self, "Error", f"Failed to load TIFF file:\n{e}")
-	
+
 	def display_frame(self, index):
-		if self.snapshot_frames:
-			frame = self.snapshot_frames[index]
+		if not self.snapshot_frames:
+			return
 	
+		# Clamp index to valid range
+		if index < 0 or index >= len(self.snapshot_frames):
+			print(f"⚠️ Frame index {index} out of bounds.")
+			return
+	
+		frame = self.snapshot_frames[index]
+	
+		# Skip if frame is empty or corrupted
+		if frame is None or frame.size == 0:
+			print(f"⚠️ Skipping empty or corrupted frame at index {index}")
+			return
+	
+		try:
 			if frame.ndim == 2:
 				height, width = frame.shape
 				q_img = QImage(frame.data, width, height, QImage.Format_Grayscale8)
@@ -326,6 +354,10 @@ class VasoAnalyzerApp(QMainWindow):
 	
 			self.snapshot_label.setPixmap(QPixmap.fromImage(q_img).scaled(
 				self.snapshot_label.width(), self.snapshot_label.height(), Qt.KeepAspectRatio))
+	
+		except Exception as e:
+			print(f"⚠️ Error displaying frame {index}: {e}")
+
 
 	def change_frame(self):
 		if not self.snapshot_frames:
@@ -483,6 +515,7 @@ class VasoAnalyzerApp(QMainWindow):
 					replace_action = menu.addAction("Replace Event Value...")
 					delete_action = menu.addAction("Delete Pin")
 					undo_action = menu.addAction("Undo Last Replacement")
+					add_new_action = menu.addAction("➕ Add as New Event")
 	
 					action = menu.exec_(self.canvas.mapToGlobal(event.guiEvent.pos()))
 					if action == delete_action:
@@ -496,6 +529,9 @@ class VasoAnalyzerApp(QMainWindow):
 						return
 					elif action == undo_action:
 						self.undo_last_replacement()
+						return
+					elif action == add_new_action:
+						self.prompt_add_event(data_x, data_y)
 						return
 			return
 	
@@ -555,6 +591,54 @@ class VasoAnalyzerApp(QMainWindow):
 				self.auto_export_table()
 				print(f"✅ Replaced value at {event_time:.2f}s with {y:.1f} µm.")
 	
+	def prompt_add_event(self, x, y):
+		if not self.event_table_data:
+			QMessageBox.warning(self, "No Events", "You must load events before adding new ones.")
+			return
+	
+		# Build label options and insertion points
+		insert_labels = [f"{label} at {t:.2f}s" for label, t, _ in self.event_table_data]
+		insert_labels.append("↘️ Add to end")  # final option
+	
+		selected, ok = QInputDialog.getItem(
+			self,
+			"Insert Event",
+			"Insert new event before which existing event?",
+			insert_labels,
+			0,
+			False
+		)
+	
+		if not ok or not selected:
+			return
+	
+		# Choose label for new event
+		new_label, label_ok = QInputDialog.getText(
+			self,
+			"New Event Label",
+			"Enter label for the new event:"
+		)
+	
+		if not label_ok or not new_label.strip():
+			return
+	
+		insert_idx = insert_labels.index(selected)
+		new_entry = (new_label.strip(), round(x, 2), round(y, 2))
+	
+		# Insert into data
+		if insert_idx == len(self.event_table_data):  # Add to end
+			self.event_labels.append(new_label.strip())
+			self.event_times.append(x)
+			self.event_table_data.append(new_entry)
+		else:
+			self.event_labels.insert(insert_idx, new_label.strip())
+			self.event_times.insert(insert_idx, x)
+			self.event_table_data.insert(insert_idx, new_entry)
+	
+		self.populate_table()
+		self.auto_export_table()
+		print(f"➕ Inserted new event: {new_entry}")
+		
 	def undo_last_replacement(self):
 		if self.last_replaced_event is None:
 			QMessageBox.information(self, "Undo", "No replacement to undo.")
@@ -651,7 +735,50 @@ class VasoAnalyzerApp(QMainWindow):
 		self.ax.set_xlim(new_left, new_right)
 		self.canvas.draw_idle()
 
-# [J] ========================= EXPORT LOGIC (CSV, FIG) ==============================
+# [J] ========================= PLOT STYLE EDITOR ================================
+	def open_plot_style_editor(self):
+		from PyQt5.QtWidgets import QDialog
+	
+		dialog = PlotStyleDialog(self)
+		if dialog.exec_() == QDialog.Accepted:
+			style = dialog.get_style()
+	
+			if style['apply_x']:
+				self.ax.tick_params(axis='x', labelsize=style['font_size'])
+				self.ax.xaxis.label.set_fontsize(style['font_size'])
+				self.ax.xaxis.label.set_fontname(style['font_family'])
+				self.ax.xaxis.label.set_fontstyle('italic' if style['italic'] else 'normal')
+				self.ax.xaxis.label.set_fontweight('bold' if style['bold'] else 'normal')
+	
+			if style['apply_y']:
+				self.ax.tick_params(axis='y', labelsize=style['font_size'])
+				self.ax.yaxis.label.set_fontsize(style['font_size'])
+				self.ax.yaxis.label.set_fontname(style['font_family'])
+				self.ax.yaxis.label.set_fontstyle('italic' if style['italic'] else 'normal')
+				self.ax.yaxis.label.set_fontweight('bold' if style['bold'] else 'normal')
+	
+			if style['apply_events']:
+				for txt, _ in self.event_text_objects:
+					txt.set_fontsize(style['font_size'])
+					txt.set_fontname(style['font_family'])
+					txt.set_fontstyle('italic' if style['italic'] else 'normal')
+					txt.set_fontweight('bold' if style['bold'] else 'normal')
+	
+			if style['apply_pins']:
+				for marker, label in self.pinned_points:
+					marker.set_markersize(style['pin_size'])
+					label.set_fontsize(style['font_size'])
+					label.set_fontname(style['font_family'])
+					label.set_fontstyle('italic' if style['italic'] else 'normal')
+					label.set_fontweight('bold' if style['bold'] else 'normal')
+	
+			# Update trace line width
+			for line in self.ax.get_lines():
+				line.set_linewidth(style['line_width'])
+	
+			self.canvas.draw_idle()
+			
+# [K] ========================= EXPORT LOGIC (CSV, FIG) ==============================
 	def auto_export_table(self):
 		if not self.trace_file_path:
 			return
@@ -692,3 +819,80 @@ class VasoAnalyzerApp(QMainWindow):
 			except Exception as e:
 				QMessageBox.critical(self, "Export Failed", str(e))
 
+
+
+from PyQt5.QtWidgets import (
+	QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+	QCheckBox, QSpinBox, QFontComboBox, QGroupBox
+)
+
+class PlotStyleDialog(QDialog):
+	def __init__(self, parent=None):
+		super().__init__(parent)
+		self.setWindowTitle("Plot Style Editor")
+
+		layout = QVBoxLayout()
+
+		# Font group
+		font_group = QGroupBox("Font Styling")
+		font_layout = QVBoxLayout()
+		self.font_size = QSpinBox(); self.font_size.setRange(6, 40); self.font_size.setValue(12)
+		self.font_family = QFontComboBox()
+		self.bold = QCheckBox("Bold")
+		self.italic = QCheckBox("Italic")
+		font_layout.addWidget(QLabel("Font Size:")); font_layout.addWidget(self.font_size)
+		font_layout.addWidget(QLabel("Font Family:")); font_layout.addWidget(self.font_family)
+		font_layout.addWidget(self.bold); font_layout.addWidget(self.italic)
+		font_group.setLayout(font_layout)
+
+		# Line/Marker group
+		line_group = QGroupBox("Trace & Marker Styling")
+		line_layout = QVBoxLayout()
+		self.line_width = QSpinBox(); self.line_width.setRange(1, 10); self.line_width.setValue(2)
+		self.pin_size = QSpinBox(); self.pin_size.setRange(1, 20); self.pin_size.setValue(6)
+		line_layout.addWidget(QLabel("Trace Line Width:")); line_layout.addWidget(self.line_width)
+		line_layout.addWidget(QLabel("Pin Marker Size:")); line_layout.addWidget(self.pin_size)
+		line_group.setLayout(line_layout)
+
+		# Apply To section
+		target_group = QGroupBox("Apply Style To...")
+		target_layout = QVBoxLayout()
+		self.apply_x = QCheckBox("X-Axis Labels and Ticks"); self.apply_x.setChecked(True)
+		self.apply_y = QCheckBox("Y-Axis Labels and Ticks"); self.apply_y.setChecked(True)
+		self.apply_events = QCheckBox("Event Labels"); self.apply_events.setChecked(True)
+		self.apply_pins = QCheckBox("Pinned Points"); self.apply_pins.setChecked(True)
+		target_layout.addWidget(self.apply_x)
+		target_layout.addWidget(self.apply_y)
+		target_layout.addWidget(self.apply_events)
+		target_layout.addWidget(self.apply_pins)
+		target_group.setLayout(target_layout)
+
+		# Confirm buttons
+		button_layout = QHBoxLayout()
+		apply_btn = QPushButton("Apply")
+		cancel_btn = QPushButton("Cancel")
+		apply_btn.clicked.connect(self.accept)
+		cancel_btn.clicked.connect(self.reject)
+		button_layout.addWidget(apply_btn)
+		button_layout.addWidget(cancel_btn)
+
+		# Assemble layout
+		layout.addWidget(font_group)
+		layout.addWidget(line_group)
+		layout.addWidget(target_group)
+		layout.addLayout(button_layout)
+		self.setLayout(layout)
+
+	def get_style(self):
+		return {
+			'font_size': self.font_size.value(),
+			'font_family': self.font_family.currentFont().family(),
+			'bold': self.bold.isChecked(),
+			'italic': self.italic.isChecked(),
+			'line_width': self.line_width.value(),
+			'pin_size': self.pin_size.value(),
+			'apply_x': self.apply_x.isChecked(),
+			'apply_y': self.apply_y.isChecked(),
+			'apply_events': self.apply_events.isChecked(),
+			'apply_pins': self.apply_pins.isChecked(),
+		}
