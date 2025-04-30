@@ -1,9 +1,0 @@
-# === Ignore build output ===
-__pycache__/
-dist/
-build/
-*.spec
-*.app
-*.exe
-*.zip
-*.pickle
