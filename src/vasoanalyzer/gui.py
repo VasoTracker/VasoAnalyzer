@@ -105,20 +105,48 @@ class VasoAnalyzerApp(QMainWindow):
 	
 		self.load_snapshot_button = QPushButton("Load _Result.tiff")
 		self.load_snapshot_button.clicked.connect(self.load_snapshot)
-	
+		self.save_hr_button = QPushButton("Export High-Res Plot")
+		self.save_hr_button.clicked.connect(self.export_high_res_plot)
+
 		# ===== Plot + Toolbar =====
 		self.fig = Figure(figsize=(8, 4), facecolor='white')
 		self.canvas = FigureCanvas(self.fig)
 		self.ax = self.fig.add_subplot(111)
 	
 		self.toolbar = NavigationToolbar(self.canvas, self)
-		self.toolbar.setStyleSheet("background-color: #F5F5F5; border: none;")
-	
+		self.toolbar.setStyleSheet("""
+			QToolBar {
+				background-color: #F0F0F0;
+				border: 1px solid #DDD;
+				padding: 4px;
+			}
+			QToolButton {
+				background-color: #FFFFFF;
+				border: 1px solid #CCC;
+				border-radius: 6px;
+				padding: 6px;
+				margin: 2px;
+			}
+			QToolButton:hover {
+				background-color: #E0F0FF;
+				border: 1px solid #3399FF;
+			}
+			QToolButton:checked {
+				background-color: #CCE5FF;
+				border: 1px solid #3399FF;
+			}
+		""")
+		
 		# File label in toolbar
 		self.trace_file_label = QLabel("No trace loaded")
 		self.trace_file_label.setStyleSheet("color: gray; font-size: 12px; padding-left: 10px;")
 		self.trace_file_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+		
+		# Add file label to toolbar with spacing
 		self.toolbar.addSeparator()
+		spacer = QWidget()
+		spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+		self.toolbar.addWidget(spacer)
 		self.toolbar.addWidget(self.trace_file_label)
 	
 		# Fix toolbar tooltips
@@ -225,6 +253,7 @@ class VasoAnalyzerApp(QMainWindow):
 		bottom_layout.addWidget(self.load_events_button)
 		bottom_layout.addWidget(self.load_snapshot_button)
 		bottom_layout.addWidget(self.slider)
+		bottom_layout.addWidget(self.save_hr_button)
 	
 		main_layout.addLayout(top_layout)
 		main_layout.addLayout(bottom_layout)
@@ -297,6 +326,29 @@ class VasoAnalyzerApp(QMainWindow):
 	
 			self.snapshot_label.setPixmap(QPixmap.fromImage(q_img).scaled(
 				self.snapshot_label.width(), self.snapshot_label.height(), Qt.KeepAspectRatio))
+
+	def change_frame(self):
+		if not self.snapshot_frames:
+			return
+	
+		idx = self.slider.value()
+		self.current_frame = idx
+		self.display_frame(idx)
+		self.update_slider_marker()
+
+	def update_slider_marker(self):
+		if self.trace_data is None or not self.snapshot_frames:
+			return
+	
+		t_current = self.slider.value() * self.recording_interval
+	
+		if self.slider_marker is None:
+			self.slider_marker = self.ax.axvline(x=t_current, color='red', linestyle='--', linewidth=1.5, label="TIFF Frame")
+		else:
+			self.slider_marker.set_xdata([t_current, t_current])
+	
+		self.canvas.draw_idle()
+		self.canvas.flush_events()
 
 # [E] ========================= PLOT RENDERING AND UPDATES ==============================
 	def update_plot(self):
@@ -408,116 +460,115 @@ class VasoAnalyzerApp(QMainWindow):
 		self.canvas.draw()
 
 # [G] ========================= PIN INTERACTION LOGIC ================================
-
-def handle_click_on_plot(self, event):
-	if event.inaxes != self.ax:
-		return
-
-	x = event.xdata
-	if x is None:
-		return
-
-	# 🔴 Right-click = open pin context menu
-	if event.button == 3:
-		click_x, click_y = event.x, event.y
-
-		for marker, label in self.pinned_points:
-			data_x = marker.get_xdata()[0]
-			data_y = marker.get_ydata()[0]
-			pixel_x, pixel_y = self.ax.transData.transform((data_x, data_y))
-			pixel_distance = np.hypot(pixel_x - click_x, pixel_y - click_y)
-
-			if pixel_distance < 10:
-				menu = QMenu(self)
-				replace_action = menu.addAction("Replace Event Value...")
-				delete_action = menu.addAction("Delete Pin")
-				undo_action = menu.addAction("Undo Last Replacement")
-
-				action = menu.exec_(self.canvas.mapToGlobal(event.guiEvent.pos()))
-				if action == delete_action:
-					marker.remove()
-					label.remove()
-					self.pinned_points.remove((marker, label))
-					self.canvas.draw_idle()
-					return
-				elif action == replace_action:
-					self.handle_event_replacement(data_x, data_y)
-					return
-				elif action == undo_action:
-					self.undo_last_replacement()
-					return
-		return
-
-	# 🟢 Left-click = add pin (unless toolbar zoom/pan is active)
-	if event.button == 1 and not self.toolbar.mode:
-		time_array = self.trace_data['Time (s)'].values
-		id_array = self.trace_data['Inner Diameter'].values
-		nearest_idx = np.argmin(np.abs(time_array - x))
-		y = id_array[nearest_idx]
-
-		marker = self.ax.plot(x, y, 'ro', markersize=6)[0]
-		label = self.ax.annotate(
-			f"{x:.2f} s\n{y:.1f} µm",
-			xy=(x, y),
-			xytext=(6, 6),
-			textcoords='offset points',
-			bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1),
-			fontsize=8
-		)
-
-		self.pinned_points.append((marker, label))
-		self.canvas.draw_idle()
-
-def handle_event_replacement(self, x, y):
-	if not self.event_labels or not self.event_times:
-		print("No events available to replace.")
-		return
-
-	options = [f"{label} at {time:.2f}s" for label, time in zip(self.event_labels, self.event_times)]
-	selected, ok = QInputDialog.getItem(
-		self,
-		"Select Event to Replace",
-		"Choose the event whose value you want to replace:",
-		options,
-		0,
-		False
-	)
-
-	if ok and selected:
-		index = options.index(selected)
-		event_label = self.event_labels[index]
-		event_time = self.event_times[index]
-
-		confirm = QMessageBox.question(
+	def handle_click_on_plot(self, event):
+		if event.inaxes != self.ax:
+			return
+	
+		x = event.xdata
+		if x is None:
+			return
+	
+		# 🔴 Right-click = open pin context menu
+		if event.button == 3:
+			click_x, click_y = event.x, event.y
+	
+			for marker, label in self.pinned_points:
+				data_x = marker.get_xdata()[0]
+				data_y = marker.get_ydata()[0]
+				pixel_x, pixel_y = self.ax.transData.transform((data_x, data_y))
+				pixel_distance = np.hypot(pixel_x - click_x, pixel_y - click_y)
+	
+				if pixel_distance < 10:
+					menu = QMenu(self)
+					replace_action = menu.addAction("Replace Event Value...")
+					delete_action = menu.addAction("Delete Pin")
+					undo_action = menu.addAction("Undo Last Replacement")
+	
+					action = menu.exec_(self.canvas.mapToGlobal(event.guiEvent.pos()))
+					if action == delete_action:
+						marker.remove()
+						label.remove()
+						self.pinned_points.remove((marker, label))
+						self.canvas.draw_idle()
+						return
+					elif action == replace_action:
+						self.handle_event_replacement(data_x, data_y)
+						return
+					elif action == undo_action:
+						self.undo_last_replacement()
+						return
+			return
+	
+		# 🟢 Left-click = add pin (unless toolbar zoom/pan is active)
+		if event.button == 1 and not self.toolbar.mode:
+			time_array = self.trace_data['Time (s)'].values
+			id_array = self.trace_data['Inner Diameter'].values
+			nearest_idx = np.argmin(np.abs(time_array - x))
+			y = id_array[nearest_idx]
+	
+			marker = self.ax.plot(x, y, 'ro', markersize=6)[0]
+			label = self.ax.annotate(
+				f"{x:.2f} s\n{y:.1f} µm",
+				xy=(x, y),
+				xytext=(6, 6),
+				textcoords='offset points',
+				bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1),
+				fontsize=8
+			)
+	
+			self.pinned_points.append((marker, label))
+			self.canvas.draw_idle()
+	
+	def handle_event_replacement(self, x, y):
+		if not self.event_labels or not self.event_times:
+			print("No events available to replace.")
+			return
+	
+		options = [f"{label} at {time:.2f}s" for label, time in zip(self.event_labels, self.event_times)]
+		selected, ok = QInputDialog.getItem(
 			self,
-			"Confirm Replacement",
-			f"Replace ID for '{event_label}' at {event_time:.2f}s with {y:.1f} µm?",
-			QMessageBox.Yes | QMessageBox.No
+			"Select Event to Replace",
+			"Choose the event whose value you want to replace:",
+			options,
+			0,
+			False
 		)
-
-		if confirm == QMessageBox.Yes:
-			old_value = self.event_table_data[index][2]
-			self.last_replaced_event = (index, old_value)
-
-			self.event_table_data[index] = (event_label, round(event_time, 2), round(y, 2))
-			self.populate_table()
-			self.auto_export_table()
-			print(f"✅ Replaced value at {event_time:.2f}s with {y:.1f} µm.")
-
-def undo_last_replacement(self):
-	if self.last_replaced_event is None:
-		QMessageBox.information(self, "Undo", "No replacement to undo.")
-		return
-
-	index, old_val = self.last_replaced_event
-	label, time, _ = self.event_table_data[index]
-
-	self.event_table_data[index] = (label, time, old_val)
-	self.populate_table()
-	self.auto_export_table()
-
-	QMessageBox.information(self, "Undo", f"Restored value for '{label}' at {time:.2f}s.")
-	self.last_replaced_event = None
+	
+		if ok and selected:
+			index = options.index(selected)
+			event_label = self.event_labels[index]
+			event_time = self.event_times[index]
+	
+			confirm = QMessageBox.question(
+				self,
+				"Confirm Replacement",
+				f"Replace ID for '{event_label}' at {event_time:.2f}s with {y:.1f} µm?",
+				QMessageBox.Yes | QMessageBox.No
+			)
+	
+			if confirm == QMessageBox.Yes:
+				old_value = self.event_table_data[index][2]
+				self.last_replaced_event = (index, old_value)
+	
+				self.event_table_data[index] = (event_label, round(event_time, 2), round(y, 2))
+				self.populate_table()
+				self.auto_export_table()
+				print(f"✅ Replaced value at {event_time:.2f}s with {y:.1f} µm.")
+	
+	def undo_last_replacement(self):
+		if self.last_replaced_event is None:
+			QMessageBox.information(self, "Undo", "No replacement to undo.")
+			return
+	
+		index, old_val = self.last_replaced_event
+		label, time, _ = self.event_table_data[index]
+	
+		self.event_table_data[index] = (label, time, old_val)
+		self.populate_table()
+		self.auto_export_table()
+	
+		QMessageBox.information(self, "Undo", f"Restored value for '{label}' at {time:.2f}s.")
+		self.last_replaced_event = None
 
 # [H] ========================= HOVER LABEL AND CURSOR SYNC ===========================
 	def update_hover_label(self, event):
@@ -616,3 +667,28 @@ def undo_last_replacement(self):
 		with open(pickle_path, 'wb') as f:
 			pickle.dump(self.fig, f)
 		print(f"✔ Editable trace figure saved to:\n{pickle_path}")
+		
+	def export_high_res_plot(self):
+		if not self.trace_file_path:
+			QMessageBox.warning(self, "Export Error", "No trace file loaded.")
+			return
+	
+		save_path, _ = QFileDialog.getSaveFileName(
+			self,
+			"Save High-Resolution Plot",
+			os.path.join(self.trace_file_path, "tracePlot_highres.tiff"),
+			"TIFF Image (*.tiff);;SVG Vector (*.svg)"
+		)
+	
+		if save_path:
+			try:
+				ext = os.path.splitext(save_path)[1].lower()
+				if ext == ".svg":
+					self.fig.savefig(save_path, format='svg', bbox_inches='tight')
+				else:
+					self.fig.savefig(save_path, format='tiff', dpi=600, bbox_inches='tight')
+	
+				QMessageBox.information(self, "Export Complete", f"Plot exported:\n{save_path}")
+			except Exception as e:
+				QMessageBox.critical(self, "Export Failed", str(e))
+
