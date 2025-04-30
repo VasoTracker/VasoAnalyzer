@@ -1,121 +1,115 @@
+# VasoAnalyzer 2.1
 
-# VasoAnalyzer 2.0
+🧪 *Bladder Vasculature Analysis Toolkit — Python Edition*  
+Built by **Osvaldo J. Vega Rodríguez** | Tykocki Lab | Michigan State University
 
-[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
-[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_Windows.zip)
-
-✨ *Bladder Vasculature Analysis Toolkit (Python Edition)* ✨  
-Developed by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University
-
----
-
-## 🌟 Overview
-
-**VasoAnalyzer 2.0** is a lightweight Python desktop application for visualizing, annotating, and analyzing vascular pressure myography trace data. It automates event-based diameter extraction, and simplifies data export.
+[![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1/VasoAnalyzer_2.1.for.macOS.zip)
+[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1/VasoAnalyzer_2.1.for.Windows.zip)
 
 ---
 
-## ⚙️ Key Features
+## 🌟 What is VasoAnalyzer?
 
-- **Load and visualize** pressure myography traces (`.csv` format)
-- **Display event markers** from `.csv` or `.txt` files
-- **View synchronized snapshots** from experiment TIFF files
-- **Interactive trace plot** with zoom, pan, and auto-positioned event labels
-- **One-click export**:
-  - Event-based diameter tables (`eventDiameters_output.csv`)
-  - Editable trace plots (`tracePlot_output.fig.pickle`)
-- **Modern, responsive UI** (PyQt5 + Matplotlib)
+**VasoAnalyzer** is a standalone desktop app built to make pressure myography data analysis clean, fast, and intuitive. It visualizes diameter traces, and auto-extracts event-based inner diameter data.
+
+Designed for researchers. Powered by Python. Zero coding required.
 
 ---
 
-## 🚀 Installation
+## 🧰 Key Features in 2.1
 
-### Option 1: Standalone Apps (No Python Required)
+- **📊 Load and visualize trace data** from `.csv` files
+- **📍 Import and display events** from `.csv` or `.txt` files
+- **🖼️ View synchronized TIFF snapshots** with red trace markers (kinda, it's hard to do)
+- **🧠 Interactive plotting**: zoom, pan, hover, and pin points
+- **📏 Auto-populated event table** with editable inner diameter values
+- **🔄 One-click export**:
+  - `eventDiameters_output.csv` (for analysis)
+  - `tracePlot_output.fig.pickle` (editable in Python)
+  - `tracePlot_output_pubready.png` (high-res figure for publications)
+- **🧠 Advanced UI**:
+  - Slider to scroll timeline
+  - Real-time trace hover display
+  - Replace or undo event values via right-click pins
 
-- [⬇️ Download VasoAnalyzer v2.0.0 for macOS](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_macOS.zip)
-- [⬇️ Download VasoAnalyzer v2.0.0 for Windows](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.0.0/VasoAnalyzer_Windows.zip)
+---
+
+## 🚀 Download & Install
+
+### ✅ Option 1: No Python Needed — Use the App!
+
+- [⬇️ Download for macOS (.app)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1/VasoAnalyzer_2.1.for.macOS.zip)
+- [⬇️ Download for Windows (.exe)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1/VasoAnalyzer_2.1.for.Windows.zip)
 
 After downloading:
-- **macOS**:
-  - Unzip the file.
-  - Open `VasoAnalyzer.app`.
-  - If a security warning appears, right-click the app and select **Open** to bypass Gatekeeper.
-- **Windows**:
-  - Unzip the file.
-  - Open `VasoAnalyzer.exe`.
+- **macOS**: Unzip → Right-click → Open (to bypass Gatekeeper)
+- **Windows**: Unzip → Double-click `.exe`
 
-> macOS version works on **Intel** and **Apple Silicon** Macs!
-
----
-
-### Option 2: Run from Source (Python 3.10+ Required)
+### 🧪 Option 2: Run From Source (Python 3.10+)
 
 ```bash
-# Clone the repository
 git clone https://github.com/vr-oj/VasoAnalyzer_2.0.git
-
-# Navigate into the folder
-cd VasoAnalyzer_2.0
-
-# (Optional) Create a virtual environment
-python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # macOS/Linux
-
-# Install dependencies
+cd VasoAnalyzer_2.0/src
 pip install -r requirements.txt
-
-# Launch the app
 python main.py
 ```
 
 ---
 
-## 🎯 Usage Guide
+## 👟 How to Use
 
-After launching:
-
-1. **Load Trace File**: Import your `.csv` file containing diameter traces.
-2. **Load Event File**: Select your `.csv` or `.txt` file with event timings and labels.
-3. **Load Snapshot File** *(optional)*: Choose a multi-frame `.tiff` image sequence.
-4. **Explore**:
-   - Inspect vessel behavior via an interactive trace plot.
-   - Scroll through synchronized snapshots with the slider.
-   - Click table events to jump directly to key trace locations.
-5. **Export Results**:
-   - Save the event-based diameter table (`eventDiameters_output.csv`).
-   - Save an editable trace figure (`tracePlot_output.fig.pickle`).
+1. **Load Trace File** (.csv from VasoTracker)
+2. **Load Event File** (.csv or .txt with time labels)
+3. *(Optional)* Load TIFF file (`_Result.tif`) to view snapshots
+4. **Zoom** into regions and drag timeline using slider
+5. **Pin points** on trace to annotate or edit events
+6. **Export** results with one click:
+   - `eventDiameters_output.csv`
+   - `tracePlot_output.fig.pickle`
+   - `tracePlot_output_pubready.png`
 
 ---
 
-## 🗂️ File Structure
+## 🛠️ Folder Structure
 
 ```
 VasoAnalyzer_2.0/
-│
-├── main.py                 # Main launcher
-├── vasoanalyzer/            # App logic and modules
-│   ├── vasotracker_ui.py
-│   ├── plot_handler.py
-│   ├── trace_loader.py
-│   ├── event_loader.py
-│   ├── snapshot_loader.py
-│   └── utils.py
-├── requirements.txt         # Python package list
-└── README.md                # (this file)
+├── src/
+│   ├── main.py                 # App launcher
+│   └── vasoanalyzer/           # App modules and logic
+│       ├── gui.py              # UI logic (PyQt5)
+│       ├── trace_loader.py     # Load trace CSV
+│       ├── event_loader.py     # Load event files
+│       ├── tiff_loader.py      # Load TIFFs
+│       └── VasoAnalyzerIcon.ico
+└── requirements.txt
 ```
+
+---
+
+## 🧪 Requirements for Developers
+
+- Python 3.10+
+- PyQt5, matplotlib, pandas, tifffile
+- Compatible with macOS and Windows
 
 ---
 
 ## 🛡️ License
 
-This project is licensed for **non-commercial academic research use**.  
-For other uses, please contact the **Tykocki Lab**.
+Non-commercial academic use only.  
+To collaborate, adapt, or extend, please contact the **Tykocki Lab**.
 
 ---
 
-## 👨‍🔬 Acknowledgements
+## 👨‍🔬 Credits
 
-Developed with passion by **Osvaldo J. Vega Rodríguez** at the **Tykocki Lab**, Michigan State University.
+Crafted by **Osvaldo J. Vega Rodríguez**  
+Developed at the **Tykocki Lab**, Michigan State University
 
 ---
+
+### Legacy Version
+
+Want the original 2.0 version?  
+Head to [Releases](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/tag/v2.0.0) for prior downloads.
