@@ -45,6 +45,28 @@ After downloading:
 - **macOS**: Unzip → Right-click → Open (to bypass Gatekeeper)
 - **Windows**: Unzip → Double-click `.exe`
 
+**macOS** users
+If you see a warning like:  
+**“VasoAnalyzer_2.1 is damaged and can’t be opened...”**  
+this is caused by macOS Gatekeeper blocking unsigned apps by default.
+
+Don't worry — your download is safe and complete. Here's how to fix it:
+
+#### Quick Fix (One-Time Step)
+
+1. Open **Terminal**
+2. Run the following command (adjust the path if needed):
+
+   ```bash
+   xattr -rd com.apple.quarantine ~/Downloads/VasoAnalyzer_2.1.app
+   ```
+
+3. Press **Enter**, then double-click the app again. It should now open normally!
+
+> You only need to do this once — unless the app is re-downloaded or moved to another computer.
+
+---
+
 ### 🧪 Option 2: Run From Source (Python 3.10+)
 
 ```bash
