@@ -37,7 +37,7 @@ from vasoanalyzer.event_loader import load_events
 class VasoAnalyzerApp(QMainWindow):
 	def __init__(self):
 		super().__init__()
-		icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer_icon.png')
+		icon_path = os.path.join(os.path.dirname(__file__), 'VasoAnalyzerIcon.icns')
 		self.setWindowIcon(QIcon(icon_path))
 
 		self.setStyleSheet("""
