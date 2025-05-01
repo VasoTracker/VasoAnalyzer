@@ -5,6 +5,9 @@ import base64
 from PyQt5.QtWidgets import QApplication, QSplashScreen
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QTimer
+import re
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
+
 
 from vasoanalyzer.gui import VasoAnalyzerApp
 import matplotlib

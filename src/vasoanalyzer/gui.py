@@ -1,3 +1,6 @@
+import os
+import re
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 # [A] ========================= IMPORTS AND GLOBAL CONFIG ============================
 import sys, os, pickle
 import numpy as np
@@ -9,20 +12,20 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from matplotlib import rcParams
 rcParams.update({
-    'axes.labelcolor': 'black',
-    'xtick.color': 'black',
-    'ytick.color': 'black',
-    'text.color': 'black',
-    'figure.facecolor': 'white',
-    'figure.edgecolor': 'white',
-    'savefig.facecolor': 'white',
-    'savefig.edgecolor': 'white',
+	'axes.labelcolor': 'black',
+	'xtick.color': 'black',
+	'ytick.color': 'black',
+	'text.color': 'black',
+	'figure.facecolor': 'white',
+	'figure.edgecolor': 'white',
+	'savefig.facecolor': 'white',
+	'savefig.edgecolor': 'white',
 })
 
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout,
-    QSlider, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView,
-    QHeaderView, QMessageBox, QInputDialog, QMenu, QSizePolicy
+	QMainWindow, QWidget, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout,
+	QSlider, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView,
+	QHeaderView, QMessageBox, QInputDialog, QMenu, QSizePolicy
 )
 from PyQt5.QtGui import QPixmap, QImage, QIcon
 from PyQt5.QtCore import Qt, QTimer
@@ -61,7 +64,7 @@ class VasoAnalyzerApp(QMainWindow):
 		self.pinned_points = []
 		self.slider_marker = None
 		self.recording_interval = 0.14	# 140 ms per frame (Vasotracker acquisition)
-		self.last_replaced_event = None  # Stores (index, old_value)
+		self.last_replaced_event = None	 # Stores (index, old_value)
 
 		# ===== Axis + Slider State =====
 		self.axis_dragging = False
@@ -97,11 +100,8 @@ class VasoAnalyzerApp(QMainWindow):
 		bottom_layout = QHBoxLayout()
 	
 		# ===== Buttons =====
-		self.load_trace_button = QPushButton("Load Trace")
-		self.load_trace_button.clicked.connect(self.load_trace)
-	
-		self.load_events_button = QPushButton("Load Events")
-		self.load_events_button.clicked.connect(self.load_events)
+		self.loadTraceBtn = QPushButton("Load Trace + Events")
+		self.loadTraceBtn.clicked.connect(self.load_trace_and_events)
 	
 		self.load_snapshot_button = QPushButton("Load _Result.tiff")
 		self.load_snapshot_button.clicked.connect(self.load_snapshot)
@@ -259,8 +259,7 @@ class VasoAnalyzerApp(QMainWindow):
 		top_layout.addLayout(left_layout, 4)
 		top_layout.addLayout(right_layout, 1)
 	
-		bottom_layout.addWidget(self.load_trace_button)
-		bottom_layout.addWidget(self.load_events_button)
+		bottom_layout.addWidget(self.loadTraceBtn)
 		bottom_layout.addWidget(self.load_snapshot_button)
 		bottom_layout.addWidget(self.save_hr_button)
 	
@@ -281,8 +280,7 @@ class VasoAnalyzerApp(QMainWindow):
 		self.canvas.mpl_connect("button_release_event", lambda event: QTimer.singleShot(100, lambda: self.on_mouse_release(event)))
 
 # [D] ========================= FILE LOADERS: TRACE / EVENTS / TIFF =====================
-	def load_trace(self):
-		file_path, _ = QFileDialog.getOpenFileName(self, "Open Trace File", "", "CSV Files (*.csv)")
+	def load_trace(self, file_path):
 		if file_path:
 			try:
 				self.trace_data = load_trace(file_path)
@@ -293,14 +291,39 @@ class VasoAnalyzerApp(QMainWindow):
 			except Exception as e:
 				QMessageBox.critical(self, "Error", f"Failed to load trace file:\n{e}")
 	
-	def load_events(self):
-		file_path, _ = QFileDialog.getOpenFileName(self, "Open Events File", "", "CSV Files (*.csv *.txt)")
+
+	def load_events(self, file_path):
 		if file_path:
 			try:
 				self.event_labels, self.event_times = load_events(file_path)
 				self.update_plot()
 			except Exception as e:
 				QMessageBox.critical(self, "Error", f"Failed to load event file:\n{e}")
+	def load_trace_and_events(self):
+		file_path, _ = QFileDialog.getOpenFileName(
+			self, "Select Trace CSV", "", "CSV Files (*.csv)"
+		)
+		if not file_path:
+			return
+
+		self.load_trace(file_path)
+		self.update_plot()
+
+		trace_base = os.path.basename(file_path)
+		match = re.match(r"(.*_Exp\d+)\.csv", trace_base)
+		if match:
+			event_filename = match.group(1) + "_table.csv"
+			event_path = os.path.join(os.path.dirname(file_path), event_filename)
+
+			if os.path.exists(event_path):
+				self.load_events(event_path)
+				self.populate_table()
+				self.update_event_label_positions()
+			else:
+				QMessageBox.warning(
+					self, "Event File Missing",
+					f"Could not find expected event file:\n{event_filename}"
+				)
 	
 	def load_snapshot(self):
 		file_path, _ = QFileDialog.getOpenFileName(self, "Open Result TIFF", "", "TIFF Files (*.tif *.tiff)")
@@ -688,7 +711,7 @@ class VasoAnalyzerApp(QMainWindow):
 	
 		# Deselect zoom after box zoom
 		if self.toolbar.mode == 'zoom':
-			self.toolbar.zoom()  # toggles off
+			self.toolbar.zoom()	 # toggles off
 			self.toolbar.mode = ''
 			self.toolbar._active = None
 			self.canvas.setCursor(Qt.ArrowCursor)
