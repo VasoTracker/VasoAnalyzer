@@ -20,12 +20,14 @@ rcParams.update({
 })
 
 from PyQt5.QtWidgets import (
-QMainWindow, QWidget, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout,
-QSlider, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView,
-QHeaderView, QMessageBox, QInputDialog, QMenu, QSizePolicy
+	QMainWindow, QWidget, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout,
+	QSlider, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView,
+	QHeaderView, QMessageBox, QInputDialog, QMenu, QSizePolicy, QAction,
+	QToolBar, QToolButton
 )
+
 from PyQt5.QtGui import QPixmap, QImage, QIcon
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QSize
 
 from vasoanalyzer.trace_loader import load_trace
 from vasoanalyzer.tiff_loader import load_tiff
@@ -73,11 +75,14 @@ class VasoAnalyzerApp(QMainWindow):
 		# ===== Build UI =====
 		self.initUI()
 
+	def icon_path(self, filename):
+		return os.path.join(os.path.dirname(__file__), '..', 'icons', filename)
+
 # [C] ========================= UI SETUP (initUI) ======================================
 	def initUI(self):
 		self.setStyleSheet("""
 			QWidget { background-color: #F5F5F5; font-family: 'Arial'; font-size: 13px; }
-			QPushButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 8px; padding: 6px 12px; }
+			QPushButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px 12px; }
 			QPushButton:hover { background-color: #E6F0FF; }
 			QToolButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px; }
 			QToolButton:hover { background-color: #D6E9FF; }
@@ -85,32 +90,31 @@ class VasoAnalyzerApp(QMainWindow):
 			QTableWidget { gridline-color: #DDDDDD; }
 			QTableWidget::item { padding: 6px; }
 		""")
-	
+
 		central_widget = QWidget()
 		self.setCentralWidget(central_widget)
-	
+
 		main_layout = QVBoxLayout()
+		main_layout.setContentsMargins(10, 4, 10, 10)
+		main_layout.setSpacing(2)
+
 		top_layout = QHBoxLayout()
 		right_layout = QVBoxLayout()
-		bottom_layout = QHBoxLayout()
-	
-		# ===== Buttons =====
-		self.load_snapshot_button = QPushButton("Load _Result.tiff")
-		self.load_snapshot_button.clicked.connect(self.load_snapshot)
-		self.save_hr_button = QPushButton("Export High-Res Plot")
-		self.save_hr_button.clicked.connect(self.export_high_res_plot)
-	
+		button_row = QHBoxLayout()
+		button_row.setSpacing(6)
+		button_row.setContentsMargins(0, 0, 0, 0)
+
 		# ===== Plot + Toolbar =====
 		self.fig = Figure(figsize=(8, 4), facecolor='white')
 		self.canvas = FigureCanvas(self.fig)
 		self.ax = self.fig.add_subplot(111)
-	
+
 		self.toolbar = NavigationToolbar(self.canvas, self)
 		self.toolbar.setStyleSheet("""
 			QToolBar {
 				background-color: #F0F0F0;
 				border: 1px solid #DDD;
-				padding: 4px;
+				padding: 2px;
 			}
 			QToolButton {
 				background-color: #FFFFFF;
@@ -128,25 +132,8 @@ class VasoAnalyzerApp(QMainWindow):
 				border: 1px solid #3399FF;
 			}
 		""")
-	
-		# File label in toolbar
-		self.trace_file_label = QLabel("No trace loaded")
-		self.trace_file_label.setStyleSheet("color: gray; font-size: 12px; padding-left: 10px;")
-		self.trace_file_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-	
-		# Add file label to toolbar with spacing
-		self.toolbar.addSeparator()
-		spacer = QWidget()
-		spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-		self.toolbar.addWidget(spacer)
-		self.toolbar.addWidget(self.trace_file_label)
-		self.toolbar.addSeparator()
-		style_button = QPushButton("Plot Style Editor…")
-		style_button.setStyleSheet("background-color: white; padding: 4px;")
-		style_button.clicked.connect(self.open_plot_style_editor)
-		self.toolbar.addWidget(style_button)
-	
-		# Fix toolbar tooltips
+
+		# Fix toolbar tooltips and insert Plot Style Editor before Save
 		visible_buttons = [a for a in self.toolbar.actions() if not a.icon().isNull()]
 		if len(visible_buttons) >= 8:
 			visible_buttons[0].setToolTip("Home: Reset zoom and pan")
@@ -155,25 +142,67 @@ class VasoAnalyzerApp(QMainWindow):
 			visible_buttons[3].setToolTip("Pan: Click and drag plot")
 			visible_buttons[4].setToolTip("Zoom: Draw box to zoom in")
 			visible_buttons[5].setToolTip("Layout: Adjust subplot spacing")
-			visible_buttons[6].setToolTip("Style: Edit axes, labels, curves")
-			visible_buttons[7].setToolTip("Save: Export plot to image file")
-	
+
+			style_btn = QToolButton()
+			style_btn.setText("Plot Style Editor…")
+			style_btn.setToolTip("Customize fonts and axis")
+			style_btn.setStyleSheet("""
+				QToolButton {
+					background-color: #FFFFFF;
+					border: 1px solid #CCC;
+					border-radius: 6px;
+					padding: 6px;
+					margin: 2px;
+				}
+				QToolButton:hover {
+					background-color: #E0F0FF;
+					border: 1px solid #3399FF;
+				}
+			""")
+			style_btn.clicked.connect(self.open_plot_style_editor)
+
+			wrapper = QWidget()
+			layout = QHBoxLayout(wrapper)
+			layout.setContentsMargins(0, 0, 0, 0)
+			layout.addWidget(style_btn)
+
+			self.toolbar.insertWidget(visible_buttons[6], wrapper)
+
+			visible_buttons[7].setToolTip("Save As… Export high-res plot")
+			visible_buttons[7].triggered.connect(self.export_high_res_plot)
+
+		# ===== Buttons under toolbar =====
+		self.loadTraceBtn = QPushButton("📂 Load Trace + Events")
+		self.loadTraceBtn.setToolTip("Load .csv trace file and auto-load matching event table")
+		self.loadTraceBtn.clicked.connect(self.load_trace_and_events)
+
+		self.load_snapshot_button = QPushButton("🖼️ Load _Result.tiff")
+		self.load_snapshot_button.setToolTip("Load Vasotracker _Result.tiff snapshot")
+		self.load_snapshot_button.clicked.connect(self.load_snapshot)
+
+		self.trace_file_label = QLabel("No trace loaded")
+		self.trace_file_label.setStyleSheet("color: gray; font-size: 12px; padding-left: 10px;")
+		self.trace_file_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+		button_row.addWidget(self.loadTraceBtn)
+		button_row.addWidget(self.load_snapshot_button)
+		button_row.addWidget(self.trace_file_label)
+
 		# ===== Snapshot Viewer =====
 		self.snapshot_label = QLabel("Snapshot will appear here")
 		self.snapshot_label.setAlignment(Qt.AlignCenter)
 		self.snapshot_label.setFixedSize(400, 300)
 		self.snapshot_label.setStyleSheet("background-color: white; border: 1px solid #999;")
 		self.snapshot_label.hide()
-	
-		# ===== TIFF Frame Slider =====
+
 		self.slider = QSlider(Qt.Horizontal)
 		self.slider.setMinimum(0)
 		self.slider.setValue(0)
 		self.slider.valueChanged.connect(self.change_frame)
 		self.slider.hide()
 		self.slider.setToolTip("Navigate TIFF frames")
-	
-		# ===== X-Axis Scroll Slider =====
+
+		# ===== Scroll Slider =====
 		self.scroll_slider = QSlider(Qt.Horizontal)
 		self.scroll_slider.setMinimum(0)
 		self.scroll_slider.setMaximum(1000)
@@ -181,6 +210,7 @@ class VasoAnalyzerApp(QMainWindow):
 		self.scroll_slider.setValue(0)
 		self.scroll_slider.valueChanged.connect(self.scroll_plot)
 		self.scroll_slider.hide()
+		self.scroll_slider.setToolTip("Scroll timeline (X-axis)")
 		self.scroll_slider.setStyleSheet("""
 			QSlider::groove:horizontal {
 				border: 1px solid #aaa;
@@ -206,8 +236,7 @@ class VasoAnalyzerApp(QMainWindow):
 				border-radius: 5px;
 			}
 		""")
-		self.scroll_slider.setToolTip("Scroll timeline (X-axis)")
-	
+
 		# ===== Event Table =====
 		self.event_table = QTableWidget()
 		self.event_table.setColumnCount(3)
@@ -220,7 +249,7 @@ class VasoAnalyzerApp(QMainWindow):
 		self.event_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 		self.event_table.cellClicked.connect(self.table_row_clicked)
 		self.event_table.itemChanged.connect(self.handle_table_edit)
-	
+
 		# ===== Hover Label =====
 		self.hover_label = QLabel("", self)
 		self.hover_label.setStyleSheet("""
@@ -231,41 +260,33 @@ class VasoAnalyzerApp(QMainWindow):
 			font-size: 12px;
 		""")
 		self.hover_label.hide()
-	
+
 		# ===== Layout Assembly =====
 		plot_with_slider_layout = QVBoxLayout()
+		plot_with_slider_layout.setSpacing(2)
 		plot_with_slider_layout.addWidget(self.canvas)
 		plot_with_slider_layout.addWidget(self.scroll_slider)
-	
+
 		left_layout = QVBoxLayout()
+		left_layout.setSpacing(2)
 		left_layout.addWidget(self.toolbar)
+		left_layout.addLayout(button_row)
 		left_layout.addLayout(plot_with_slider_layout)
-	
+
 		snapshot_with_slider_layout = QVBoxLayout()
+		snapshot_with_slider_layout.setSpacing(2)
 		snapshot_with_slider_layout.addWidget(self.snapshot_label)
 		snapshot_with_slider_layout.addWidget(self.slider)
-	
+
 		right_layout.addLayout(snapshot_with_slider_layout)
 		right_layout.addWidget(self.event_table)
-	
+
 		top_layout.addLayout(left_layout, 4)
 		top_layout.addLayout(right_layout, 1)
-	
-		bottom_layout.addWidget(self.load_snapshot_button)
-		self.loadTraceBtn = QPushButton("Load Trace + Events")
-		self.loadTraceBtn.clicked.connect(self.load_trace_and_events)
-		bottom_layout.addWidget(self.loadTraceBtn)
-		bottom_layout.addWidget(self.save_hr_button)
-	
+
 		main_layout.addLayout(top_layout)
-		main_layout.addLayout(bottom_layout)
-	
-		main_layout.setContentsMargins(10, 10, 10, 10)
-		top_layout.setSpacing(10)
-		bottom_layout.setContentsMargins(0, 5, 0, 0)
-	
 		central_widget.setLayout(main_layout)
-	
+
 		# ===== Canvas Interactions =====
 		self.canvas.mpl_connect("draw_event", self.update_event_label_positions)
 		self.canvas.mpl_connect("motion_notify_event", self.update_event_label_positions)
