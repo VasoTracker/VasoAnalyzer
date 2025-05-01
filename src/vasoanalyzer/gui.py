@@ -212,6 +212,7 @@ class VasoAnalyzerApp(QMainWindow):
 		self.event_table = QTableWidget()
 		self.event_table.setColumnCount(3)
 		self.event_table.setHorizontalHeaderLabels(["Event", "Time (s)", "ID (µm)"])
+		self.event_table.setMinimumWidth(400)
 		self.event_table.setEditTriggers(QAbstractItemView.DoubleClicked)
 		self.event_table.setSelectionBehavior(QAbstractItemView.SelectRows)
 		self.event_table.setStyleSheet("background-color: white; color: black;")
@@ -790,7 +791,7 @@ class VasoAnalyzerApp(QMainWindow):
 		self.ax.title.set_color('black')
 		self.event_text_objects = []
 	
-		# Plot the trace
+		# Plot trace
 		t = self.trace_data['Time (s)']
 		d = self.trace_data['Inner Diameter']
 		self.ax.plot(t, d, 'k-', linewidth=1.5)
@@ -798,12 +799,31 @@ class VasoAnalyzerApp(QMainWindow):
 		self.ax.set_ylabel("Inner Diameter (µm)")
 		self.ax.grid(True, color='#CCC')
 	
-		# Add vertical event markers and labels
-		if self.event_times and self.event_labels:
-			for label, time in zip(self.event_labels, self.event_times):
-				self.ax.axvline(x=time, color='black', linestyle='--', linewidth=0.8)
+		# Plot events if available
+		if self.event_labels and self.event_times:
+			self.event_table_data = []
+			offset_sec = 2
+			nEv = len(self.event_times)
+			diam_trace = self.trace_data['Inner Diameter']
+			time_trace = self.trace_data['Time (s)']
+	
+			for i in range(nEv):
+				idx_ev = np.argmin(np.abs(time_trace - self.event_times[i]))
+				diam_at_ev = diam_trace.iloc[idx_ev]
+	
+				if i < nEv - 1:
+					t_sample = self.event_times[i+1] - offset_sec
+					idx_pre = np.argmin(np.abs(time_trace - t_sample))
+				else:
+					idx_pre = -1
+				diam_pre = diam_trace.iloc[idx_pre]
+	
+				# Vertical line
+				self.ax.axvline(x=self.event_times[i], color='black', linestyle='--', linewidth=0.8)
+	
+				# Label on plot
 				txt = self.ax.text(
-					time, 0, label,
+					self.event_times[i], 0, self.event_labels[i],
 					rotation=90,
 					verticalalignment='top',
 					horizontalalignment='right',
@@ -811,13 +831,18 @@ class VasoAnalyzerApp(QMainWindow):
 					color='black',
 					clip_on=True
 				)
-				self.event_text_objects.append((txt, time))
+				self.event_text_objects.append((txt, self.event_times[i]))
 	
-		# Update the table and redraw canvas
-		self.populate_table()
+				# Table entry
+				self.event_table_data.append((
+					self.event_labels[i],
+					round(self.event_times[i], 2),
+					round(diam_pre, 2)
+				))
+	
+			self.populate_table()
+	
 		self.canvas.draw_idle()
-		self.update_scroll_slider()
-	
 
 	def scroll_plot(self):
 		if self.trace_data is None:
