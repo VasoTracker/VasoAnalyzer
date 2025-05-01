@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import (
 	QMainWindow, QWidget, QPushButton, QFileDialog, QVBoxLayout, QHBoxLayout,
 	QSlider, QLabel, QTableWidget, QTableWidgetItem, QAbstractItemView,
 	QHeaderView, QMessageBox, QInputDialog, QMenu, QSizePolicy, QAction,
-	QToolBar, QToolButton
+	QToolBar, QToolButton, QSpacerItem
 )
 
 from PyQt5.QtGui import QPixmap, QImage, QIcon
@@ -77,63 +77,45 @@ class VasoAnalyzerApp(QMainWindow):
 
 	def icon_path(self, filename):
 		return os.path.join(os.path.dirname(__file__), '..', 'icons', filename)
-
 # [C] ========================= UI SETUP (initUI) ======================================
 	def initUI(self):
 		self.setStyleSheet("""
 			QWidget { background-color: #F5F5F5; font-family: 'Arial'; font-size: 13px; }
 			QPushButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px 12px; }
 			QPushButton:hover { background-color: #E6F0FF; }
-			QToolButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px; }
+			QToolButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px; margin: 2px; }
 			QToolButton:hover { background-color: #D6E9FF; }
+			QToolButton:checked { background-color: #CCE5FF; border: 1px solid #3399FF; }
 			QHeaderView::section { background-color: #E0E0E0; font-weight: bold; padding: 6px; }
 			QTableWidget { gridline-color: #DDDDDD; }
 			QTableWidget::item { padding: 6px; }
 		""")
-
+	
 		central_widget = QWidget()
 		self.setCentralWidget(central_widget)
-
-		main_layout = QVBoxLayout()
-		main_layout.setContentsMargins(10, 4, 10, 10)
-		main_layout.setSpacing(2)
-
-		top_layout = QHBoxLayout()
-		right_layout = QVBoxLayout()
-		button_row = QHBoxLayout()
-		button_row.setSpacing(6)
-		button_row.setContentsMargins(0, 0, 0, 0)
-
-		# ===== Plot + Toolbar =====
+	
+		main_layout = QVBoxLayout(central_widget)
+		main_layout.setContentsMargins(0, 0, 0, 0)
+		main_layout.setSpacing(0)
+	
+		# ===== Figure and Canvas Setup =====
 		self.fig = Figure(figsize=(8, 4), facecolor='white')
 		self.canvas = FigureCanvas(self.fig)
 		self.ax = self.fig.add_subplot(111)
-
+	
+		# ===== Top Toolbar =====
 		self.toolbar = NavigationToolbar(self.canvas, self)
+		self.toolbar.setIconSize(QSize(24, 24))
 		self.toolbar.setStyleSheet("""
 			QToolBar {
 				background-color: #F0F0F0;
-				border: 1px solid #DDD;
 				padding: 2px;
-			}
-			QToolButton {
-				background-color: #FFFFFF;
-				border: 1px solid #CCC;
-				border-radius: 6px;
-				padding: 6px;
-				margin: 2px;
-			}
-			QToolButton:hover {
-				background-color: #E0F0FF;
-				border: 1px solid #3399FF;
-			}
-			QToolButton:checked {
-				background-color: #CCE5FF;
-				border: 1px solid #3399FF;
+				border: none;
 			}
 		""")
-
-		# Fix toolbar tooltips and insert Plot Style Editor before Save
+		self.toolbar.setContentsMargins(0, 0, 0, 0)
+	
+		# Reorder buttons and insert Plot Style Editor
 		visible_buttons = [a for a in self.toolbar.actions() if not a.icon().isNull()]
 		if len(visible_buttons) >= 8:
 			visible_buttons[0].setToolTip("Home: Reset zoom and pan")
@@ -142,67 +124,60 @@ class VasoAnalyzerApp(QMainWindow):
 			visible_buttons[3].setToolTip("Pan: Click and drag plot")
 			visible_buttons[4].setToolTip("Zoom: Draw box to zoom in")
 			visible_buttons[5].setToolTip("Layout: Adjust subplot spacing")
-
+	
+			# Styled font button before save
 			style_btn = QToolButton()
-			style_btn.setText("Plot Style Editor…")
-			style_btn.setToolTip("Customize fonts and axis")
+			style_btn.setText("Aa")
+			style_btn.setToolTip("Customize plot fonts and layout")
 			style_btn.setStyleSheet("""
 				QToolButton {
 					background-color: #FFFFFF;
-					border: 1px solid #CCC;
+					border: 1px solid #CCCCCC;
 					border-radius: 6px;
 					padding: 6px;
 					margin: 2px;
+					font-weight: bold;
+					font-size: 14px;
 				}
 				QToolButton:hover {
 					background-color: #E0F0FF;
-					border: 1px solid #3399FF;
 				}
 			""")
 			style_btn.clicked.connect(self.open_plot_style_editor)
-
-			wrapper = QWidget()
-			layout = QHBoxLayout(wrapper)
-			layout.setContentsMargins(0, 0, 0, 0)
-			layout.addWidget(style_btn)
-
-			self.toolbar.insertWidget(visible_buttons[6], wrapper)
-
+			self.toolbar.insertWidget(visible_buttons[6], style_btn)
+	
+			# Ensure Save button still triggers export
 			visible_buttons[7].setToolTip("Save As… Export high-res plot")
 			visible_buttons[7].triggered.connect(self.export_high_res_plot)
-
-		# ===== Buttons under toolbar =====
+	
+		main_layout.addWidget(self.toolbar)
+	
+		# ===== Load Buttons Row =====
+		button_row = QHBoxLayout()
+		button_row.setContentsMargins(6, 2, 6, 2)
+		button_row.setSpacing(8)
+	
 		self.loadTraceBtn = QPushButton("📂 Load Trace + Events")
 		self.loadTraceBtn.setToolTip("Load .csv trace file and auto-load matching event table")
 		self.loadTraceBtn.clicked.connect(self.load_trace_and_events)
-
+	
 		self.load_snapshot_button = QPushButton("🖼️ Load _Result.tiff")
 		self.load_snapshot_button.setToolTip("Load Vasotracker _Result.tiff snapshot")
 		self.load_snapshot_button.clicked.connect(self.load_snapshot)
-
+	
 		self.trace_file_label = QLabel("No trace loaded")
 		self.trace_file_label.setStyleSheet("color: gray; font-size: 12px; padding-left: 10px;")
 		self.trace_file_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
+	
 		button_row.addWidget(self.loadTraceBtn)
 		button_row.addWidget(self.load_snapshot_button)
 		button_row.addWidget(self.trace_file_label)
-
-		# ===== Snapshot Viewer =====
-		self.snapshot_label = QLabel("Snapshot will appear here")
-		self.snapshot_label.setAlignment(Qt.AlignCenter)
-		self.snapshot_label.setFixedSize(400, 300)
-		self.snapshot_label.setStyleSheet("background-color: white; border: 1px solid #999;")
-		self.snapshot_label.hide()
-
-		self.slider = QSlider(Qt.Horizontal)
-		self.slider.setMinimum(0)
-		self.slider.setValue(0)
-		self.slider.valueChanged.connect(self.change_frame)
-		self.slider.hide()
-		self.slider.setToolTip("Navigate TIFF frames")
-
-		# ===== Scroll Slider =====
+	
+		btn_widget = QWidget()
+		btn_widget.setLayout(button_row)
+		main_layout.addWidget(btn_widget)
+	
+		# ===== Plot and Scroll Slider =====
 		self.scroll_slider = QSlider(Qt.Horizontal)
 		self.scroll_slider.setMinimum(0)
 		self.scroll_slider.setMaximum(1000)
@@ -211,33 +186,32 @@ class VasoAnalyzerApp(QMainWindow):
 		self.scroll_slider.valueChanged.connect(self.scroll_plot)
 		self.scroll_slider.hide()
 		self.scroll_slider.setToolTip("Scroll timeline (X-axis)")
-		self.scroll_slider.setStyleSheet("""
-			QSlider::groove:horizontal {
-				border: 1px solid #aaa;
-				height: 10px;
-				background: #e0e0e0;
-				margin: 4px 0;
-				border-radius: 5px;
-			}
-			QSlider::handle:horizontal {
-				background: #007BFF;
-				border: 1px solid #555;
-				width: 16px;
-				height: 16px;
-				margin: -4px 0;
-				border-radius: 8px;
-			}
-			QSlider::sub-page:horizontal {
-				background: #cce5ff;
-				border-radius: 5px;
-			}
-			QSlider::add-page:horizontal {
-				background: #f5f5f5;
-				border-radius: 5px;
-			}
-		""")
-
-		# ===== Event Table =====
+	
+		plot_layout = QVBoxLayout()
+		plot_layout.setContentsMargins(6, 0, 6, 6)
+		plot_layout.setSpacing(4)
+		plot_layout.addWidget(self.canvas)
+		plot_layout.addWidget(self.scroll_slider)
+	
+		left_layout = QVBoxLayout()
+		left_layout.setSpacing(0)
+		left_layout.setContentsMargins(0, 0, 0, 0)
+		left_layout.addLayout(plot_layout)
+	
+		# ===== Snapshot Viewer and Table =====
+		self.snapshot_label = QLabel("Snapshot will appear here")
+		self.snapshot_label.setAlignment(Qt.AlignCenter)
+		self.snapshot_label.setFixedSize(400, 300)
+		self.snapshot_label.setStyleSheet("background-color: white; border: 1px solid #999;")
+		self.snapshot_label.hide()
+	
+		self.slider = QSlider(Qt.Horizontal)
+		self.slider.setMinimum(0)
+		self.slider.setValue(0)
+		self.slider.valueChanged.connect(self.change_frame)
+		self.slider.hide()
+		self.slider.setToolTip("Navigate TIFF frames")
+	
 		self.event_table = QTableWidget()
 		self.event_table.setColumnCount(3)
 		self.event_table.setHorizontalHeaderLabels(["Event", "Time (s)", "ID (µm)"])
@@ -249,7 +223,28 @@ class VasoAnalyzerApp(QMainWindow):
 		self.event_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 		self.event_table.cellClicked.connect(self.table_row_clicked)
 		self.event_table.itemChanged.connect(self.handle_table_edit)
-
+	
+		snapshot_layout = QVBoxLayout()
+		snapshot_layout.setSpacing(4)
+		snapshot_layout.setContentsMargins(0, 0, 0, 0)
+		snapshot_layout.addWidget(self.snapshot_label)
+		snapshot_layout.addWidget(self.slider)
+	
+		right_layout = QVBoxLayout()
+		right_layout.setSpacing(6)
+		right_layout.setContentsMargins(0, 0, 0, 0)
+		right_layout.addLayout(snapshot_layout)
+		right_layout.addWidget(self.event_table)
+	
+		# ===== Top-Level Layout (Left + Right) =====
+		top_layout = QHBoxLayout()
+		top_layout.setContentsMargins(0, 0, 0, 0)
+		top_layout.setSpacing(0)
+		top_layout.addLayout(left_layout, 4)
+		top_layout.addLayout(right_layout, 1)
+	
+		main_layout.addLayout(top_layout)
+	
 		# ===== Hover Label =====
 		self.hover_label = QLabel("", self)
 		self.hover_label.setStyleSheet("""
@@ -260,33 +255,7 @@ class VasoAnalyzerApp(QMainWindow):
 			font-size: 12px;
 		""")
 		self.hover_label.hide()
-
-		# ===== Layout Assembly =====
-		plot_with_slider_layout = QVBoxLayout()
-		plot_with_slider_layout.setSpacing(2)
-		plot_with_slider_layout.addWidget(self.canvas)
-		plot_with_slider_layout.addWidget(self.scroll_slider)
-
-		left_layout = QVBoxLayout()
-		left_layout.setSpacing(2)
-		left_layout.addWidget(self.toolbar)
-		left_layout.addLayout(button_row)
-		left_layout.addLayout(plot_with_slider_layout)
-
-		snapshot_with_slider_layout = QVBoxLayout()
-		snapshot_with_slider_layout.setSpacing(2)
-		snapshot_with_slider_layout.addWidget(self.snapshot_label)
-		snapshot_with_slider_layout.addWidget(self.slider)
-
-		right_layout.addLayout(snapshot_with_slider_layout)
-		right_layout.addWidget(self.event_table)
-
-		top_layout.addLayout(left_layout, 4)
-		top_layout.addLayout(right_layout, 1)
-
-		main_layout.addLayout(top_layout)
-		central_widget.setLayout(main_layout)
-
+	
 		# ===== Canvas Interactions =====
 		self.canvas.mpl_connect("draw_event", self.update_event_label_positions)
 		self.canvas.mpl_connect("motion_notify_event", self.update_event_label_positions)
@@ -892,41 +861,42 @@ class VasoAnalyzerApp(QMainWindow):
 		if dialog.exec_() == QDialog.Accepted:
 			style = dialog.get_style()
 	
-			if style['apply_x']:
-				self.ax.tick_params(axis='x', labelsize=style['font_size'])
-				self.ax.xaxis.label.set_fontsize(style['font_size'])
-				self.ax.xaxis.label.set_fontname(style['font_family'])
-				self.ax.xaxis.label.set_fontstyle('italic' if style['italic'] else 'normal')
-				self.ax.xaxis.label.set_fontweight('bold' if style['bold'] else 'normal')
+			# Axis Titles
+			self.ax.xaxis.label.set_fontsize(style['axis_font_size'])
+			self.ax.xaxis.label.set_fontname(style['axis_font_family'])
+			self.ax.xaxis.label.set_fontstyle('italic' if style['axis_italic'] else 'normal')
+			self.ax.xaxis.label.set_fontweight('bold' if style['axis_bold'] else 'normal')
 	
-			if style['apply_y']:
-				self.ax.tick_params(axis='y', labelsize=style['font_size'])
-				self.ax.yaxis.label.set_fontsize(style['font_size'])
-				self.ax.yaxis.label.set_fontname(style['font_family'])
-				self.ax.yaxis.label.set_fontstyle('italic' if style['italic'] else 'normal')
-				self.ax.yaxis.label.set_fontweight('bold' if style['bold'] else 'normal')
+			self.ax.yaxis.label.set_fontsize(style['axis_font_size'])
+			self.ax.yaxis.label.set_fontname(style['axis_font_family'])
+			self.ax.yaxis.label.set_fontstyle('italic' if style['axis_italic'] else 'normal')
+			self.ax.yaxis.label.set_fontweight('bold' if style['axis_bold'] else 'normal')
 	
-			if style['apply_events']:
-				for txt, _ in self.event_text_objects:
-					txt.set_fontsize(style['font_size'])
-					txt.set_fontname(style['font_family'])
-					txt.set_fontstyle('italic' if style['italic'] else 'normal')
-					txt.set_fontweight('bold' if style['bold'] else 'normal')
+			# Tick Labels
+			self.ax.tick_params(axis='x', labelsize=style['tick_font_size'])
+			self.ax.tick_params(axis='y', labelsize=style['tick_font_size'])
 	
-			if style['apply_pins']:
-				for marker, label in self.pinned_points:
-					marker.set_markersize(style['pin_size'])
-					label.set_fontsize(style['font_size'])
-					label.set_fontname(style['font_family'])
-					label.set_fontstyle('italic' if style['italic'] else 'normal')
-					label.set_fontweight('bold' if style['bold'] else 'normal')
+			# Event Labels
+			for txt, _ in self.event_text_objects:
+				txt.set_fontsize(style['event_font_size'])
+				txt.set_fontname(style['event_font_family'])
+				txt.set_fontstyle('italic' if style['event_italic'] else 'normal')
+				txt.set_fontweight('bold' if style['event_bold'] else 'normal')
 	
-			# Update trace line width
+			# Pinned Labels
+			for marker, label in self.pinned_points:
+				marker.set_markersize(style['pin_size'])
+				label.set_fontsize(style['pin_font_size'])
+				label.set_fontname(style['pin_font_family'])
+				label.set_fontstyle('italic' if style['pin_italic'] else 'normal')
+				label.set_fontweight('bold' if style['pin_bold'] else 'normal')
+	
+			# Line Width
 			for line in self.ax.get_lines():
 				line.set_linewidth(style['line_width'])
 	
 			self.canvas.draw_idle()
-
+		
 # [K] ========================= EXPORT LOGIC (CSV, FIG) ==============================
 	def auto_export_table(self):
 		if not self.trace_file_path:
@@ -967,3 +937,190 @@ class VasoAnalyzerApp(QMainWindow):
 				QMessageBox.information(self, "Export Complete", f"Plot exported:\n{save_path}")
 			except Exception as e:
 				QMessageBox.critical(self, "Export Failed", str(e))
+
+# [L] ========================= PlotStyleDialog =========================
+from PyQt5.QtWidgets import (
+	QDialog, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSpinBox,
+	QCheckBox, QPushButton, QFormLayout
+)
+
+class PlotStyleDialog(QDialog):
+	def __init__(self, parent=None):
+		super().__init__(parent)
+		self.setWindowTitle("Plot Style Editor")
+		self.setMinimumWidth(400)
+
+		self.tabs = QTabWidget()
+		main_layout = QVBoxLayout()
+		main_layout.addWidget(self.tabs)
+		self.setLayout(main_layout)
+
+		# Track settings per tab
+		self.init_axis_tab()
+		self.init_tick_tab()
+		self.init_event_tab()
+		self.init_pin_tab()
+		self.init_line_tab()
+
+	def init_axis_tab(self):
+		tab = QWidget()
+		layout = QVBoxLayout(tab)
+		form = QFormLayout()
+
+		self.axis_font_size = QSpinBox()
+		self.axis_font_size.setRange(6, 32)
+		self.axis_font_size.setValue(14)
+
+		self.axis_font_family = QComboBox()
+		self.axis_font_family.addItems(["Arial", "Helvetica", "Times New Roman", "Courier", "Verdana"])
+
+		self.axis_bold = QCheckBox("Bold")
+		self.axis_italic = QCheckBox("Italic")
+
+		form.addRow("Font Size:", self.axis_font_size)
+		form.addRow("Font Family:", self.axis_font_family)
+		form.addRow("", self.axis_bold)
+		form.addRow("", self.axis_italic)
+
+		layout.addLayout(form)
+		layout.addLayout(self.button_row('axis'))
+		self.tabs.addTab(tab, "Axis Titles")
+
+	def init_tick_tab(self):
+		tab = QWidget()
+		layout = QVBoxLayout(tab)
+		form = QFormLayout()
+
+		self.tick_font_size = QSpinBox()
+		self.tick_font_size.setRange(6, 32)
+		self.tick_font_size.setValue(12)
+
+		form.addRow("Tick Label Font Size:", self.tick_font_size)
+
+		layout.addLayout(form)
+		layout.addLayout(self.button_row('tick'))
+		self.tabs.addTab(tab, "Tick Labels")
+
+	def init_event_tab(self):
+		tab = QWidget()
+		layout = QVBoxLayout(tab)
+		form = QFormLayout()
+
+		self.event_font_size = QSpinBox()
+		self.event_font_size.setRange(6, 32)
+		self.event_font_size.setValue(10)
+
+		self.event_font_family = QComboBox()
+		self.event_font_family.addItems(["Arial", "Helvetica", "Times New Roman", "Courier", "Verdana"])
+
+		self.event_bold = QCheckBox("Bold")
+		self.event_italic = QCheckBox("Italic")
+
+		form.addRow("Font Size:", self.event_font_size)
+		form.addRow("Font Family:", self.event_font_family)
+		form.addRow("", self.event_bold)
+		form.addRow("", self.event_italic)
+
+		layout.addLayout(form)
+		layout.addLayout(self.button_row('event'))
+		self.tabs.addTab(tab, "Event Labels")
+
+	def init_pin_tab(self):
+		tab = QWidget()
+		layout = QVBoxLayout(tab)
+		form = QFormLayout()
+
+		self.pin_font_size = QSpinBox()
+		self.pin_font_size.setRange(6, 32)
+		self.pin_font_size.setValue(10)
+
+		self.pin_font_family = QComboBox()
+		self.pin_font_family.addItems(["Arial", "Helvetica", "Times New Roman", "Courier", "Verdana"])
+
+		self.pin_bold = QCheckBox("Bold")
+		self.pin_italic = QCheckBox("Italic")
+
+		self.pin_size = QSpinBox()
+		self.pin_size.setRange(2, 20)
+		self.pin_size.setValue(6)
+
+		form.addRow("Font Size:", self.pin_font_size)
+		form.addRow("Font Family:", self.pin_font_family)
+		form.addRow("", self.pin_bold)
+		form.addRow("", self.pin_italic)
+		form.addRow("Marker Size:", self.pin_size)
+
+		layout.addLayout(form)
+		layout.addLayout(self.button_row('pin'))
+		self.tabs.addTab(tab, "Pinned Labels")
+
+	def init_line_tab(self):
+		tab = QWidget()
+		layout = QVBoxLayout(tab)
+		form = QFormLayout()
+
+		self.line_width = QSpinBox()
+		self.line_width.setRange(1, 10)
+		self.line_width.setValue(2)
+
+		form.addRow("Trace Line Width:", self.line_width)
+		layout.addLayout(form)
+		layout.addLayout(self.button_row('line'))
+		self.tabs.addTab(tab, "Trace Style")
+
+	def button_row(self, section):
+		layout = QHBoxLayout()
+		apply_btn = QPushButton("Apply")
+		default_btn = QPushButton("Default")
+
+		apply_btn.clicked.connect(lambda: self.accept())  # You can expand per-tab live preview here
+		default_btn.clicked.connect(lambda: self.reset_defaults(section))
+
+		layout.addWidget(apply_btn)
+		layout.addWidget(default_btn)
+		return layout
+
+	def reset_defaults(self, section):
+		if section == 'axis':
+			self.axis_font_size.setValue(14)
+			self.axis_font_family.setCurrentText("Arial")
+			self.axis_bold.setChecked(False)
+			self.axis_italic.setChecked(False)
+		elif section == 'tick':
+			self.tick_font_size.setValue(12)
+		elif section == 'event':
+			self.event_font_size.setValue(10)
+			self.event_font_family.setCurrentText("Arial")
+			self.event_bold.setChecked(False)
+			self.event_italic.setChecked(False)
+		elif section == 'pin':
+			self.pin_font_size.setValue(10)
+			self.pin_font_family.setCurrentText("Arial")
+			self.pin_bold.setChecked(False)
+			self.pin_italic.setChecked(False)
+			self.pin_size.setValue(6)
+		elif section == 'line':
+			self.line_width.setValue(2)
+
+	def get_style(self):
+		return {
+			"axis_font_size": self.axis_font_size.value(),
+			"axis_font_family": self.axis_font_family.currentText(),
+			"axis_bold": self.axis_bold.isChecked(),
+			"axis_italic": self.axis_italic.isChecked(),
+
+			"tick_font_size": self.tick_font_size.value(),
+
+			"event_font_size": self.event_font_size.value(),
+			"event_font_family": self.event_font_family.currentText(),
+			"event_bold": self.event_bold.isChecked(),
+			"event_italic": self.event_italic.isChecked(),
+
+			"pin_font_size": self.pin_font_size.value(),
+			"pin_font_family": self.pin_font_family.currentText(),
+			"pin_bold": self.pin_bold.isChecked(),
+			"pin_italic": self.pin_italic.isChecked(),
+			"pin_size": self.pin_size.value(),
+
+			"line_width": self.line_width.value()
+		}
