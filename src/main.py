@@ -59,6 +59,17 @@ class VasoAnalyzerLauncher:
 	def __init__(self):
 		self.app = QApplication(sys.argv)
 
+        # ===== Platform-specific icon =====
+        if sys.platform.startswith("win"):
+            icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer', 'VasoAnalyzerIcon.ico')
+        elif sys.platform == "darwin":
+            icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer', 'VasoAnalyzerIcon.icns')
+        else:
+            icon_path = None
+
+        if icon_path and os.path.exists(icon_path):
+            self.app.setWindowIcon(QIcon(icon_path))
+
 		# === Global Qt Stylesheet Patch ===
 		self.app.setStyleSheet("""
 			* {
