@@ -47,7 +47,7 @@ class VasoAnalyzerApp(QMainWindow):
 		""")
 
 		# ===== Setup App Window =====
-		self.setWindowTitle("VasoAnalyzer 2.1 - Python Edition")
+		self.setWindowTitle("VasoAnalyzer 2.1.1 - Python Edition")
 		self.setGeometry(100, 100, 1280, 720)
 
 		# ===== Initialize State =====
