@@ -4,7 +4,7 @@
 Built by **Osvaldo J. Vega Rodríguez** | Tykocki Lab | Michigan State University
 
 [![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.1.1/VasoAnalyzer_v2.1.1_macOS.zip)
-[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1.1/VasoAnalyzer_2.1.1.for.Windows.zip)
+[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.1.1/VasoAnalyzer_v2.1.1_Windows.zip)
 
 ---
 
@@ -42,33 +42,47 @@ Designed for researchers. Powered by Python. Zero coding required.
   - Faster TIFF loading and error handling
 
 ---
-
 ## 🚀 Download & Install
 
 ### ✅ Option 1: No Python Needed — Use the App!
 
-- [⬇️ Download for macOS (.app)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1.1/VasoAnalyzer_2.1.1.for.macOS.zip)
-- [⬇️ Download for Windows (.exe)](https://github.com/vr-oj/VasoAnalyzer_2.0/releases/download/v2.1.1/VasoAnalyzer_2.1.1.for.Windows.zip)
+- [![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.1.1/VasoAnalyzer_v2.1.1_macOS.zip)
+- [![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.1.1/VasoAnalyzer_v2.1.1_Windows.zip)
 
 After downloading:
-- **macOS**: Unzip → Right-click → Open (to bypass Gatekeeper)
-- **Windows**: Unzip → Double-click `.exe`
 
-**macOS** users  
-If you see a warning like:  
-**“VasoAnalyzer is damaged and can’t be opened...”**  
-this is caused by macOS Gatekeeper blocking unsigned apps by default.
+- **macOS**:  
+  1. Unzip the download.  
+  2. Move the app to your **Applications** folder.  
+  3. **Right-click → Open** (you only need to do this the first time).  
+  4. If macOS still blocks the app, see the Gatekeeper fix below.
 
-Don't worry — your download is safe and complete. Here's how to fix it:
+- **Windows**:  
+  1. Unzip the folder.  
+  2. Double-click `VasoAnalyzer_2.1.1.exe` to launch the app.
 
-#### Quick Fix (One-Time Step)
+---
+
+### ⚠️ macOS Gatekeeper Warning
+
+If macOS says:
+
+> **“VasoAnalyzer can’t be opened because it is from an unidentified developer”**  
+> or  
+> **“VasoAnalyzer is damaged and can’t be opened”**
+
+This is a common issue for unsigned apps on macOS — it does **not** mean the app is unsafe. You can safely bypass this using Terminal.
+
+#### One-Time Fix
+
+Open the **Terminal** app and run:
 
 ```bash
-xattr -rd com.apple.quarantine ~/Downloads/VasoAnalyzer_2.1.1.app
+xattr -rd com.apple.quarantine ~/Downloads/VasoAnalyzer_v2.1.1_macOS.app
 ```
 
-> You only need to do this once — unless the app is re-downloaded or moved to another computer.
-
+Then try launching the app again.  
+> You only need to do this once per computer or per download.
 ---
 
 ### 🧪 Option 2: Run From Source (Python 3.10+)
