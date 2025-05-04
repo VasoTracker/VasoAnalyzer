@@ -28,9 +28,5 @@ src/build/VasoAnalyzer_2.1/*.txt
 src/build/VasoAnalyzer_2.1/qt.conf
 src/build/VasoAnalyzer_2.1/localpycs/
 
-# === Windows + macOS Icon Conversions ===
-generated-*.icns
-*.ico
-
 # === Optional: Ignore macOS app internals ===
 src/dist/VasoAnalyzer_2.1.app/Contents/
