@@ -1,4 +1,4 @@
-# VasoAnalyzer 2.1.1
+# VasoAnalyzer 2.5
 
 🧪 *Bladder Vasculature Analysis Toolkit — Python Edition*  
 Built by **Osvaldo J. Vega Rodríguez** | Tykocki Lab | Michigan State University
@@ -16,30 +16,34 @@ Designed for researchers. Powered by Python. Zero coding required.
 
 ---
 
-## 🧰 Key Features in v2.1.1
+## 🧰 Key Features in v2.5
 
 - **📊 Load and visualize trace data** from `.csv` files
 - **📍 Import and display events** from `.csv` or `.txt` files
 - **🖼️ View synchronized TIFF snapshots** with red trace markers
 - **🧠 Interactive plotting**: zoom, pan, hover, and pin points
 - **📏 Auto-populated event table** with editable inner diameter values
-- **🎨 Plot Style Editor** (new!)
-  - Customize fonts, colors, and line widths
-  - Edit axis titles and tick labels separately
-  - Adjust event and pin label styles in real time
-  - Tabbed layout with per-section Apply + Reset buttons
+- **🎨 Plot Style Editor** (Tabbed)
+  - Customize fonts and line widths
+  - Separate tabs for: axis titles, tick labels, event labels, pinned labels, trace style
+  - Each tab has **Apply** and **Reset** buttons
+- **🆕 New Toolbar Buttons**:
+  - "Aa" = Open font + style editor
+  - "?" = Toggle grid visibility (light grid on/off)
+- **📌 Pin and Edit Tools**:
+  - Right-click any pin to replace or remove
+  - Insert new events with custom labels
+  - Undo last diameter change
 - **🔄 One-click export**:
-  - `eventDiameters_output.csv` (for analysis)
+  - `eventDiameters_output.csv` (for Excel or analysis)
   - `tracePlot_output.fig.pickle` (editable in Python)
-  - `tracePlot_output_pubready.tiff` or `.svg` (high-res export)
-- **📌 Undo Support + Pinning**:
-  - Visually pin measurement points
-  - Replace event values via right-click menu
-  - Undo accidental changes anytime
-- **⚡ Optimizations and UI polish**
-  - New app icon and splash branding
-  - Updated toolbar with hover tooltips
-  - Faster TIFF loading and error handling
+  - `tracePlot_output_pubready.tiff` or `.svg` (publication-ready)
+- **🧾 Excel Mapper Integration**:
+  - Map events to a custom Excel file
+  - Preserves formulas and formatting
+- **⚡ UI + Performance Improvements**
+  - Responsive design, light theme, compact toolbar spacing
+  - Improved TIFF loading, slider syncing, tooltip display
 
 ---
 ## 🚀 Download & Install
@@ -106,7 +110,11 @@ python main.py
 6. **Export** results with one click:
    - `eventDiameters_output.csv`
    - `tracePlot_output.fig.pickle`
-   - `tracePlot_output_pubready.tiff`
+   - `tracePlot_output_pubready.tiff` or `.svg`
+7. *(Optional)* Click **📊 Excel** to:
+   - Map diameters into an Excel template
+   - Select column for insertion
+   - Preserve all original formulas and formatting
 
 ---
 
@@ -144,7 +152,7 @@ To collaborate, adapt, or extend, please contact the **Tykocki Lab**.
 
 ## 👨‍🔬 Credits
 
-Crafted by **Osvaldo J. Vega Rodríguez**  
+**Osvaldo J. Vega Rodríguez**  
 Developed at the **Tykocki Lab**, Michigan State University
 
 ---

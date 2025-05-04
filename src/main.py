@@ -7,6 +7,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QTimer
 import re
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtGui import QIcon
 
 from vasoanalyzer.gui import VasoAnalyzerApp
 import matplotlib
@@ -17,9 +18,9 @@ from matplotlib.backends.backend_qt5 import MainWindow
 # ===== Embedded Splash Image =====
 # Resolve base64 splash path for source vs. PyInstaller bundle
 if hasattr(sys, "_MEIPASS"):
-    base_path = os.path.join(sys._MEIPASS, "vasoanalyzer")
+	base_path = os.path.join(sys._MEIPASS, "vasoanalyzer")
 else:
-    base_path = os.path.join(os.path.dirname(__file__), "vasoanalyzer")
+	base_path = os.path.join(os.path.dirname(__file__), "vasoanalyzer")
 
 splash_file = os.path.join(base_path, "splash_image_base64.txt")
 
@@ -59,16 +60,16 @@ class VasoAnalyzerLauncher:
 	def __init__(self):
 		self.app = QApplication(sys.argv)
 
-        # ===== Platform-specific icon =====
-        if sys.platform.startswith("win"):
-            icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer', 'VasoAnalyzerIcon.ico')
-        elif sys.platform == "darwin":
-            icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer', 'VasoAnalyzerIcon.icns')
-        else:
-            icon_path = None
+		# ===== Platform-specific icon =====
+		if sys.platform.startswith("win"):
+			icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer', 'VasoAnalyzerIcon.ico')
+		elif sys.platform == "darwin":
+			icon_path = os.path.join(os.path.dirname(__file__), 'vasoanalyzer', 'VasoAnalyzerIcon.icns')
+		else:
+			icon_path = None
 
-        if icon_path and os.path.exists(icon_path):
-            self.app.setWindowIcon(QIcon(icon_path))
+		if icon_path and os.path.exists(icon_path):
+			self.app.setWindowIcon(QIcon(icon_path))
 
 		# === Global Qt Stylesheet Patch ===
 		self.app.setStyleSheet("""
