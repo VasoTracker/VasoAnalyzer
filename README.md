@@ -29,7 +29,7 @@ Designed for researchers. Powered by Python. Zero coding required.
   - Each tab has **Apply** and **Reset** buttons
 - **🆕 New Toolbar Buttons**:
   - "Aa" = Open font + style editor
-  - "?" = Toggle grid visibility (light grid on/off)
+  - "Grid" = Toggle grid visibility (light grid on/off)
 - **📌 Pin and Edit Tools**:
   - Right-click any pin to replace or remove
   - Insert new events with custom labels
