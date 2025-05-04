@@ -42,7 +42,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='vasoanalyzer/VasoAnalyzerIcon.icns',  # used only for macOS bundle
+    icon='vasoanalyzer/VasoAnalyzerIcon.ico',
 )
 
 coll = COLLECT(
