@@ -137,8 +137,12 @@ VasoAnalyzer_2.0/
 
 ## 🧪 Requirements for Developers
 
-- Python 3.10+
-- PyQt5, matplotlib, pandas, tifffile
+- PyQt5>=5.15.4
+- matplotlib>=3.5.0
+- numpy>=1.21.0
+- pandas>=1.3.0
+- tifffile>=2021.7.2
+- openpyxl>=3.0.0
 - Compatible with macOS and Windows
 
 ---
