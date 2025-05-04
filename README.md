@@ -50,7 +50,7 @@ Designed for researchers. Powered by Python. Zero coding required.
 
 ### ✅ Option 1: No Python Needed — Use the App!
 
-- [![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.1.1/VasoAnalyzer_v2.1.1_macOS.zip)
+- [![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5.zip)
 - [![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.1.1/VasoAnalyzer_v2.1.1_Windows.zip)
 
 After downloading:
