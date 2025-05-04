@@ -63,7 +63,7 @@ After downloading:
 
 - **Windows**:  
   1. Unzip the folder.  
-  2. Double-click `VasoAnalyzer_2.1.1.exe` to launch the app.
+  2. Double-click `VasoAnalyzer_2.5.exe` to launch the app.
 
 ---
 
@@ -82,8 +82,10 @@ This is a common issue for unsigned apps on macOS — it does **not** mean the a
 Open the **Terminal** app and run:
 
 ```bash
-xattr -rd com.apple.quarantine ~/Downloads/VasoAnalyzer_v2.1.1_macOS.app
+xattr -rd com.apple.quarantine /path/to/VasoAnalyzer 2.5.app
 ```
+Replace /path/to/VasoAnalyzer.app with the actual path where you placed the app
+(e.g., ~/Applications/VasoAnalyzer 2.5.app).
 
 Then try launching the app again.  
 > You only need to do this once per computer or per download.
