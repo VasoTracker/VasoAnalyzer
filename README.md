@@ -4,7 +4,7 @@
 Built by **Osvaldo J. Vega Rodríguez** | Tykocki Lab | Michigan State University
 
 [![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5.macOS.zip)
-[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5.Windows.zip)
+[![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5_Windows.zip)
 
 ---
 
@@ -51,7 +51,7 @@ Designed for researchers. Powered by Python. Zero coding required.
 ### ✅ Option 1: No Python Needed — Use the App!
 
 - [![Download macOS App](https://img.shields.io/badge/Download-macOS-blue?logo=apple&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5.macOS.zip)
-- [![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5.Windows.zip)
+- [![Download Windows App](https://img.shields.io/badge/Download-Windows-blue?logo=windows&style=for-the-badge)](https://github.com/vr-oj/VasoAnalyzer/releases/download/v2.5/VasoAnalyzer.2.5_Windows.zip)
 
 After downloading:
 
