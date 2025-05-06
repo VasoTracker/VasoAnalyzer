@@ -27,493 +27,88 @@ from PyQt5.QtWidgets import (
 )
 
 from PyQt5.QtGui import QPixmap, QImage, QIcon
-from PyQt5.QtCore import Qt, QTimer, QSize
+from PyQt5.QtCore import Qt, QTimer, QSize, QSettings
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QStatusBar
+
 
 from vasoanalyzer.trace_loader import load_trace
 from vasoanalyzer.tiff_loader import load_tiff
 from vasoanalyzer.event_loader import load_events
-from .excel_mapper import ExcelMappingDialog
-from vasoanalyzer.excel_mapper import update_excel_file
+from vasoanalyzer.excel_mapper import ExcelMappingDialog, update_excel_file
 
 # [B] ========================= MAIN CLASS DEFINITION ================================
+PREVIOUS_PLOT_PATH = os.path.join(os.path.expanduser("~"), ".vasoanalyzer_last_plot.pickle")
+
 class VasoAnalyzerApp(QMainWindow):
-	def __init__(self):
-		super().__init__()
-		icon_path = os.path.join(os.path.dirname(__file__), 'VasoAnalyzerIcon.icns')
-		self.setWindowIcon(QIcon(icon_path))
+    ...
 
-		self.setStyleSheet("""
-			QPushButton {
-				color: black;
-			}
-		""")
+    def update_plot(self):
+        if self.trace_data is None:
+            return
 
-		# ===== Setup App Window =====
-		self.setWindowTitle("VasoAnalyzer 2.5 - Python Edition")
-		self.setGeometry(100, 100, 1280, 720)
+        self.ax.clear()
+        self.ax.set_facecolor("white")
+        self.ax.tick_params(colors='black')
+        self.ax.xaxis.label.set_color('black')
+        self.ax.yaxis.label.set_color('black')
+        self.ax.title.set_color('black')
+        self.event_text_objects = []
 
-		# ===== Initialize State =====
-		self.trace_data = None
-		self.trace_file_path = None
-		self.snapshot_frames = []
-		self.current_frame = 0
-		self.event_labels = []
-		self.event_times = []
-		self.event_text_objects = []
-		self.event_table_data = []
-		self.selected_event_marker = None
-		self.pinned_points = []
-		self.slider_marker = None
-		self.recording_interval = 0.14	# 140 ms per frame
-		self.last_replaced_event = None
-		self.excel_auto_path = None		# Path to Excel file for auto-update
-		self.excel_auto_column = None	# Column letter to use for auto-update
+        # Plot trace
+        t = self.trace_data['Time (s)']
+        d = self.trace_data['Inner Diameter']
+        self.ax.plot(t, d, 'k-', linewidth=1.5)
+        self.ax.set_xlabel("Time (s)")
+        self.ax.set_ylabel("Inner Diameter (µm)")
+        self.ax.grid(True, color='#CCC')
 
-		# ===== Axis + Slider State =====
-		self.axis_dragging = False
-		self.axis_drag_start = None
-		self.drag_direction = None
-		self.scroll_slider = None
-		self.window_width = None
+        # Plot events if available
+        if self.event_labels and self.event_times:
+            self.event_table_data = []
+            offset_sec = 2
+            nEv = len(self.event_times)
+            diam_trace = self.trace_data['Inner Diameter']
+            time_trace = self.trace_data['Time (s)']
 
-		# ===== Build UI =====
-		self.initUI()
+            for i in range(nEv):
+                idx_ev = np.argmin(np.abs(time_trace - self.event_times[i]))
+                diam_at_ev = diam_trace.iloc[idx_ev]
 
-	def icon_path(self, filename):
-		return os.path.join(os.path.dirname(__file__), '..', 'icons', filename)
+                if i < nEv - 1:
+                    t_sample = self.event_times[i+1] - offset_sec
+                    idx_pre = np.argmin(np.abs(time_trace - t_sample))
+                else:
+                    idx_pre = -1
+                diam_pre = diam_trace.iloc[idx_pre]
 
+                # Vertical line
+                self.ax.axvline(x=self.event_times[i], color='black', linestyle='--', linewidth=0.8)
 
-# [C] ========================= UI SETUP (initUI) ======================================
-	def initUI(self):
-		self.setStyleSheet("""
-			QWidget { background-color: #F5F5F5; font-family: 'Arial'; font-size: 13px; }
-			QPushButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px 12px; }
-			QPushButton:hover { background-color: #E6F0FF; }
-			QToolButton { background-color: #FFFFFF; border: 1px solid #CCCCCC; border-radius: 6px; padding: 6px; margin: 2px; }
-			QToolButton:hover { background-color: #D6E9FF; }
-			QToolButton:checked { background-color: #CCE5FF; border: 1px solid #3399FF; }
-			QHeaderView::section { background-color: #E0E0E0; font-weight: bold; padding: 6px; }
-			QTableWidget { gridline-color: #DDDDDD; }
-			QTableWidget::item { padding: 6px; }
-		""")
-		central_widget = QWidget()
-		self.setCentralWidget(central_widget)
-		main_layout = QVBoxLayout(central_widget)
-		main_layout.setContentsMargins(0, 0, 0, 0)
-		main_layout.setSpacing(0)
-		self.fig = Figure(figsize=(8, 4), facecolor='white')
-		self.canvas = FigureCanvas(self.fig)
-		self.ax = self.fig.add_subplot(111)
-		self.grid_visible = True  # Track grid visibility
-		
-		# ===== Initialize Matplotlib Toolbar =====
-		self.toolbar = NavigationToolbar(self.canvas, self)
-		self.toolbar.setIconSize(QSize(24, 24))
-		self.toolbar.setStyleSheet("""
-			QToolBar {
-				background-color: #F0F0F0;
-				padding: 2px;
-				border: none;
-			}
-		""")
-		self.toolbar.setContentsMargins(0, 0, 0, 0)
-		
-		# Remove stray/empty buttons
-		if hasattr(self.toolbar, 'coordinates'):
-			self.toolbar.coordinates = lambda *args, **kwargs: None
-			for act in self.toolbar.actions():
-				if isinstance(act, QAction) and act.text() == "":
-					self.toolbar.removeAction(act)
-		
-		visible_buttons = [a for a in self.toolbar.actions() if not a.icon().isNull()]
-		if len(visible_buttons) >= 8:
-			visible_buttons[0].setToolTip("Home: Reset zoom and pan")
-			visible_buttons[1].setToolTip("Back: Previous view")
-			visible_buttons[2].setToolTip("Forward: Next view")
-			visible_buttons[3].setToolTip("Pan: Click and drag plot")
-			visible_buttons[4].setToolTip("Zoom: Draw box to zoom in")
-		
-			# [5] Subplot layout (borders + spacings)
-			layout_btn = visible_buttons[5]
-			layout_btn.setToolTip("Configure subplot layout")
-			layout_btn.triggered.disconnect()
-			layout_btn.triggered.connect(self.toolbar.configure_subplots)
-		
-			# [6] Axes and title editor
-			axes_btn = visible_buttons[6]
-			axes_btn.setToolTip("Edit axis ranges and titles")
-			axes_btn.triggered.disconnect()
-			axes_btn.triggered.connect(self.toolbar.edit_parameters)
-		
-			# [Inject] Aa: Plot style editor
-			style_btn = QToolButton()
-			style_btn.setText("Aa")
-			style_btn.setToolTip("Customize plot fonts and layout")
-			style_btn.setStyleSheet("""
-				QToolButton {
-					background-color: #FFFFFF;
-					border: 1px solid #CCCCCC;
-					border-radius: 6px;
-					padding: 6px;
-					margin: 2px;
-					font-weight: bold;
-					font-size: 14px;
-				}
-				QToolButton:hover {
-					background-color: #E0F0FF;
-				}
-			""")
-			style_btn.clicked.connect(self.open_plot_style_editor)
-			self.toolbar.insertWidget(visible_buttons[7], style_btn)
-		
-			# [Inject] Grid toggle button
-			grid_btn = QToolButton()
-			grid_btn.setText("Grid")
-			grid_btn.setToolTip("Toggle grid visibility")
-			grid_btn.setCheckable(True)
-			grid_btn.setChecked(self.grid_visible)
-			grid_btn.clicked.connect(self.toggle_grid)
-			self.toolbar.insertWidget(visible_buttons[7], grid_btn)
-		
-			# [7] Save/export button
-			save_btn = visible_buttons[7]
-			save_btn.setToolTip("Save As… Export high-res plot")
-			save_btn.triggered.disconnect()
-			save_btn.triggered.connect(self.export_high_res_plot)
+                # Label on plot
+                txt = self.ax.text(
+                    self.event_times[i], 0, self.event_labels[i],
+                    rotation=90,
+                    verticalalignment='top',
+                    horizontalalignment='right',
+                    fontsize=8,
+                    color='black',
+                    clip_on=True
+                )
+                self.event_text_objects.append((txt, self.event_times[i]))
 
+                # Table entry
+                self.event_table_data.append((
+                    self.event_labels[i],
+                    round(self.event_times[i], 2),
+                    round(diam_pre, 2)
+                ))
 
+            self.populate_table()
+            self.auto_export_table()
 
-	
-		# ===== Unified Top Row: Toolbar + Load Buttons =====
-		top_row_layout = QHBoxLayout()
-		top_row_layout.setContentsMargins(6, 4, 6, 2)
-		top_row_layout.setSpacing(8)
-	
-		top_row_layout.addWidget(self.toolbar)
-	
-		self.loadTraceBtn = QPushButton("📂 Load Trace + Events")
-		self.loadTraceBtn.setToolTip("Load .csv trace file and auto-load matching event table")
-		self.loadTraceBtn.clicked.connect(self.load_trace_and_events)
-	
-		self.load_snapshot_button = QPushButton("🖼️ Load _Result.tiff")
-		self.load_snapshot_button.setToolTip("Load Vasotracker _Result.tiff snapshot")
-		self.load_snapshot_button.clicked.connect(self.load_snapshot)
-	
-		self.excel_btn = QPushButton("📊 Excel")
-		self.excel_btn.setToolTip("Map Events to Excel Template")
-		self.excel_btn.setEnabled(False)
-		self.excel_btn.clicked.connect(self.open_excel_mapping_dialog)
-	
-		self.trace_file_label = QLabel("No trace loaded")
-		self.trace_file_label.setStyleSheet("color: gray; font-size: 12px; padding-left: 10px;")
-		self.trace_file_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-	
-		top_row_layout.addWidget(self.loadTraceBtn)
-		top_row_layout.addWidget(self.load_snapshot_button)
-		top_row_layout.addWidget(self.excel_btn)
-		top_row_layout.addWidget(self.trace_file_label)
-	
-		main_layout.addLayout(top_row_layout)
-	
-		# ===== Plot and Scroll Slider =====
-		self.scroll_slider = QSlider(Qt.Horizontal)
-		self.scroll_slider.setMinimum(0)
-		self.scroll_slider.setMaximum(1000)
-		self.scroll_slider.setSingleStep(1)
-		self.scroll_slider.setValue(0)
-		self.scroll_slider.valueChanged.connect(self.scroll_plot)
-		self.scroll_slider.hide()
-		self.scroll_slider.setToolTip("Scroll timeline (X-axis)")
-	
-		plot_layout = QVBoxLayout()
-		plot_layout.setContentsMargins(6, 0, 6, 6)
-		plot_layout.setSpacing(4)
-		plot_layout.addWidget(self.canvas)
-		plot_layout.addWidget(self.scroll_slider)
-	
-		left_layout = QVBoxLayout()
-		left_layout.setSpacing(0)
-		left_layout.setContentsMargins(0, 0, 0, 0)
-		left_layout.addLayout(plot_layout)
-	
-		# ===== Snapshot Viewer and Table =====
-		self.snapshot_label = QLabel("Snapshot will appear here")
-		self.snapshot_label.setAlignment(Qt.AlignCenter)
-		self.snapshot_label.setFixedSize(400, 300)
-		self.snapshot_label.setStyleSheet("background-color: white; border: 1px solid #999;")
-		self.snapshot_label.hide()
-	
-		self.slider = QSlider(Qt.Horizontal)
-		self.slider.setMinimum(0)
-		self.slider.setValue(0)
-		self.slider.valueChanged.connect(self.change_frame)
-		self.slider.hide()
-		self.slider.setToolTip("Navigate TIFF frames")
-	
-		self.event_table = QTableWidget()
-		self.event_table.setColumnCount(3)
-		self.event_table.setHorizontalHeaderLabels(["Event", "Time (s)", "ID (µm)"])
-		self.event_table.setMinimumWidth(400)
-		self.event_table.setEditTriggers(QAbstractItemView.DoubleClicked)
-		self.event_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-		self.event_table.setStyleSheet("background-color: white; color: black;")
-		self.event_table.horizontalHeader().setStretchLastSection(True)
-		self.event_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-		self.event_table.cellClicked.connect(self.table_row_clicked)
-		self.event_table.itemChanged.connect(self.handle_table_edit)
-	
-		snapshot_layout = QVBoxLayout()
-		snapshot_layout.setSpacing(4)
-		snapshot_layout.setContentsMargins(0, 0, 0, 0)
-		snapshot_layout.addWidget(self.snapshot_label)
-		snapshot_layout.addWidget(self.slider)
-	
-		right_layout = QVBoxLayout()
-		right_layout.setSpacing(6)
-		right_layout.setContentsMargins(0, 0, 0, 0)
-		right_layout.addLayout(snapshot_layout)
-		right_layout.addWidget(self.event_table)
-	
-		# ===== Top-Level Layout (Left + Right) =====
-		top_layout = QHBoxLayout()
-		top_layout.setContentsMargins(0, 0, 0, 0)
-		top_layout.setSpacing(0)
-		top_layout.addLayout(left_layout, 4)
-		top_layout.addLayout(right_layout, 1)
-	
-		main_layout.addLayout(top_layout)
-	
-		# ===== Hover Label =====
-		self.hover_label = QLabel("", self)
-		self.hover_label.setStyleSheet("""
-			background-color: rgba(255, 255, 255, 220);
-			border: 1px solid #888;
-			border-radius: 5px;
-			padding: 2px 6px;
-			font-size: 12px;
-		""")
-		self.hover_label.hide()
-	
-		# ===== Canvas Interactions =====
-		self.canvas.mpl_connect("draw_event", self.update_event_label_positions)
-		self.canvas.mpl_connect("motion_notify_event", self.update_event_label_positions)
-		self.canvas.mpl_connect("motion_notify_event", self.update_hover_label)
-		self.canvas.mpl_connect("button_press_event", self.handle_click_on_plot)
-		self.canvas.mpl_connect("button_release_event", lambda event: QTimer.singleShot(100, lambda: self.on_mouse_release(event)))
-
-# [D] ========================= FILE LOADERS: TRACE / EVENTS / TIFF =====================
-	def load_trace_and_events(self):
-		file_path, _ = QFileDialog.getOpenFileName(self, "Select Trace File", "", "CSV Files (*.csv)")
-		if not file_path:
-			return
-	
-		try:
-			# Load trace
-			self.trace_data = load_trace(file_path)
-			self.trace_file_path = os.path.dirname(file_path)
-			trace_filename = os.path.basename(file_path)
-			self.trace_file_label.setText(f"🧪 {trace_filename}")
-			self.update_plot()
-		except Exception as e:
-			QMessageBox.critical(self, "Trace Load Error", f"Failed to load trace file:\n{e}")
-			return
-	
-		# Try to load matching _table.csv file
-		base_name = os.path.splitext(trace_filename)[0]
-		event_filename = f"{base_name}_table.csv"
-		event_path = os.path.join(self.trace_file_path, event_filename)
-	
-		if os.path.exists(event_path):
-			try:
-				self.event_labels, self.event_times = load_events(event_path)
-	
-				# Generate table data by sampling diameters
-				diam_trace = self.trace_data['Inner Diameter']
-				time_trace = self.trace_data['Time (s)']
-				self.event_table_data = []
-	
-				for i in range(len(self.event_times)):
-					if i < len(self.event_times) - 1:
-						t_sample = self.event_times[i+1] - 2  # 2 sec before next
-						idx_pre = np.argmin(np.abs(time_trace - t_sample))
-					else:
-						idx_pre = -1
-					diam_pre = diam_trace.iloc[idx_pre]
-					self.event_table_data.append((
-						self.event_labels[i],
-						round(self.event_times[i], 2),
-						round(diam_pre, 2)
-					))
-	
-				self.populate_table()
-				self.update_plot()
-				self.excel_btn.setEnabled(True)
-			except Exception as e:
-				QMessageBox.warning(self, "Event Load Error", f"Trace loaded, but failed to load events:\n{e}")
-		else:
-			QMessageBox.information(self, "Event File Not Found", f"No matching event file found:\n{event_filename}")
-
-	def load_snapshot(self):
-		file_path, _ = QFileDialog.getOpenFileName(self, "Open Result TIFF", "", "TIFF Files (*.tif *.tiff)")
-		if file_path:
-			try:
-				frames = load_tiff(file_path)
-				valid_frames = [f for f in frames if f is not None and f.size > 0]
-
-				if len(valid_frames) < len(frames):
-					QMessageBox.warning(self, "TIFF Warning", "Some TIFF frames were empty or corrupted and were skipped.")
-
-				self.snapshot_frames = valid_frames
-				if self.snapshot_frames:
-					self.display_frame(0)
-					self.slider.setMaximum(len(self.snapshot_frames) - 1)
-					self.slider.setValue(0)
-					self.snapshot_label.show()
-					self.slider.show()
-					self.slider_marker = None
-			except Exception as e:
-				QMessageBox.critical(self, "Error", f"Failed to load TIFF file:\n{e}")
-
-	def display_frame(self, index):
-		if not self.snapshot_frames:
-			return
-
-		# Clamp index to valid range
-		if index < 0 or index >= len(self.snapshot_frames):
-			print(f"⚠️ Frame index {index} out of bounds.")
-			return
-
-		frame = self.snapshot_frames[index]
-
-		# Skip if frame is empty or corrupted
-		if frame is None or frame.size == 0:
-			print(f"⚠️ Skipping empty or corrupted frame at index {index}")
-			return
-
-		try:
-			if frame.ndim == 2:
-				height, width = frame.shape
-				q_img = QImage(frame.data, width, height, QImage.Format_Grayscale8)
-			elif frame.ndim == 3:
-				height, width, channels = frame.shape
-				if channels == 3:
-					q_img = QImage(frame.data, width, height, 3 * width, QImage.Format_RGB888)
-				else:
-					raise ValueError(f"Unsupported TIFF frame format: {frame.shape}")
-			else:
-				raise ValueError(f"Unknown TIFF frame dimensions: {frame.shape}")
-
-			self.snapshot_label.setPixmap(QPixmap.fromImage(q_img).scaled(
-				self.snapshot_label.width(), self.snapshot_label.height(), Qt.KeepAspectRatio))
-		except Exception as e:
-			print(f"⚠️ Error displaying frame {index}: {e}")
-
-	def change_frame(self):
-		if not self.snapshot_frames:
-			return
-
-		idx = self.slider.value()
-		self.current_frame = idx
-		self.display_frame(idx)
-		self.update_slider_marker()
-
-	def update_slider_marker(self):
-		if self.trace_data is None or not self.snapshot_frames:
-			return
-
-		t_current = self.slider.value() * self.recording_interval
-
-		if self.slider_marker is None:
-			self.slider_marker = self.ax.axvline(x=t_current, color='red', linestyle='--', linewidth=1.5, label="TIFF Frame")
-		else:
-			self.slider_marker.set_xdata([t_current, t_current])
-
-		self.canvas.draw_idle()
-		self.canvas.flush_events()
-
-	def update_event_label_positions(self, event=None):
-		if not self.event_text_objects:
-			return
-
-		y_min, y_max = self.ax.get_ylim()
-		y_top = min(y_max - 5, y_max * 0.95)
-
-		for txt, x in self.event_text_objects:
-			txt.set_position((x, y_top))
-
-	def populate_event_table_from_df(self, df):
-		self.event_table.setRowCount(len(df))
-		for row in range(len(df)):
-			self.event_table.setItem(row, 0, QTableWidgetItem(str(df.iloc[row].get("EventLabel", ""))))
-			self.event_table.setItem(row, 1, QTableWidgetItem(str(df.iloc[row].get("Time (s)", ""))))
-			self.event_table.setItem(row, 2, QTableWidgetItem(str(df.iloc[row].get("ID (µm)", ""))))
-
-# [E] ========================= PLOTTING AND EVENT SYNC ============================
-	def update_plot(self):
-		if self.trace_data is None:
-			return
-
-		self.ax.clear()
-		self.ax.set_facecolor("white")
-		self.ax.tick_params(colors='black')
-		self.ax.xaxis.label.set_color('black')
-		self.ax.yaxis.label.set_color('black')
-		self.ax.title.set_color('black')
-		self.event_text_objects = []
-
-		# Plot trace
-		t = self.trace_data['Time (s)']
-		d = self.trace_data['Inner Diameter']
-		self.ax.plot(t, d, 'k-', linewidth=1.5)
-		self.ax.set_xlabel("Time (s)")
-		self.ax.set_ylabel("Inner Diameter (µm)")
-		self.ax.grid(True, color='#CCC')
-
-		# Plot events if available
-		if self.event_labels and self.event_times:
-			self.event_table_data = []
-			offset_sec = 2
-			nEv = len(self.event_times)
-			diam_trace = self.trace_data['Inner Diameter']
-			time_trace = self.trace_data['Time (s)']
-
-			for i in range(nEv):
-				idx_ev = np.argmin(np.abs(time_trace - self.event_times[i]))
-				diam_at_ev = diam_trace.iloc[idx_ev]
-
-				if i < nEv - 1:
-					t_sample = self.event_times[i+1] - offset_sec
-					idx_pre = np.argmin(np.abs(time_trace - t_sample))
-				else:
-					idx_pre = -1
-				diam_pre = diam_trace.iloc[idx_pre]
-
-				# Vertical line
-				self.ax.axvline(x=self.event_times[i], color='black', linestyle='--', linewidth=0.8)
-
-				# Label on plot
-				txt = self.ax.text(
-					self.event_times[i], 0, self.event_labels[i],
-					rotation=90,
-					verticalalignment='top',
-					horizontalalignment='right',
-					fontsize=8,
-					color='black',
-					clip_on=True
-				)
-				self.event_text_objects.append((txt, self.event_times[i]))
-
-				# Table entry
-				self.event_table_data.append((
-					self.event_labels[i],
-					round(self.event_times[i], 2),
-					round(diam_pre, 2)
-				))
-
-			self.populate_table()
-			self.auto_export_table()
-
-		self.canvas.draw_idle()
+        self.canvas.draw()
+        self.canvas.flush_events()
 
 	def scroll_plot(self):
 		if self.trace_data is None:
@@ -801,19 +396,22 @@ class VasoAnalyzerApp(QMainWindow):
 			self.scroll_slider.hide()
 
 # [J] ========================= PLOT STYLE EDITOR ================================
-	def open_plot_style_editor(self):
+	def open_plot_style_editor(self, tab_name=None):
 		from PyQt5.QtWidgets import QDialog
-	
+
 		dialog = PlotStyleDialog(self)
-	
-		# Store current styles to revert if Cancel is pressed
+
+		if tab_name:
+			index = dialog.tabs.indexOf(dialog.tabs.findChild(QWidget, tab_name))
+			if index != -1:
+				dialog.tabs.setCurrentIndex(index)
+
 		prev_style = dialog.get_style()
-	
+
 		if dialog.exec_() == QDialog.Accepted:
 			style = dialog.get_style()
 			self.apply_plot_style(style)
 		else:
-			# Restore previous style (Cancel pressed)
 			self.apply_plot_style(prev_style)
 	
 	def apply_plot_style(self, style):
@@ -862,7 +460,170 @@ class VasoAnalyzerApp(QMainWindow):
 		self.toolbar.edit_parameters()
 		self.canvas.draw_idle()
 
+	def start_new_analysis(self):
+		confirm = QMessageBox.question(
+			self, "Start New Analysis",
+			"Clear current session and start fresh?",
+			QMessageBox.Yes | QMessageBox.No
+		)
+		if confirm == QMessageBox.Yes:
+			self.clear_current_session()
 
+	def clear_current_session(self):
+		self.trace_data = None
+		self.trace_file_path = None
+		self.snapshot_frames = []
+		self.current_frame = 0
+		self.event_labels = []
+		self.event_times = []
+		self.event_text_objects = []
+		self.event_table_data = []
+		self.pinned_points = []
+		self.selected_event_marker = None
+		self.slider_marker = None
+		self.ax.clear()
+		self.canvas.draw()
+		self.event_table.setRowCount(0)
+		self.snapshot_label.clear()
+		self.trace_file_label.setText("No trace loaded")
+		self.slider.hide()
+		self.snapshot_label.hide()
+		self.excel_btn.setEnabled(False)
+		print("🧼 Cleared session.")
+		self.statusBar().showMessage("Started new analysis.")
+
+	def show_event_table_context_menu(self, position):
+		index = self.event_table.indexAt(position)
+		if not index.isValid():
+			return
+	
+		row = index.row()
+		menu = QMenu()
+	
+		# Group 1: Edit & Delete
+		edit_action = menu.addAction("✏️ Edit ID (µm)…")
+		delete_action = menu.addAction("🗑️ Delete Event")
+		menu.addSeparator()
+	
+		# Group 2: Plot Navigation
+		jump_action = menu.addAction("🔍 Jump to Event on Plot")
+		pin_action = menu.addAction("📌 Pin to Plot")
+		menu.addSeparator()
+	
+		# Group 3: Pin Utilities
+		replace_with_pin_action = menu.addAction("🔄 Replace ID with Pinned Value")
+		clear_pins_action = menu.addAction("❌ Clear All Pins")
+	
+		# Show menu
+		action = menu.exec_(self.event_table.viewport().mapToGlobal(position))
+	
+		# Group 1 actions
+		if action == edit_action:
+			old_val = self.event_table.item(row, 2).text()
+			new_val, ok = QInputDialog.getDouble(self, "Edit ID", "Enter new ID (µm):", float(old_val), 0, 10000, 2)
+			if ok:
+				self.event_table_data[row] = (
+					self.event_table_data[row][0],
+					self.event_table_data[row][1],
+					round(new_val, 2)
+				)
+				self.populate_table()
+				self.auto_export_table()
+	
+		elif action == delete_action:
+			confirm = QMessageBox.question(
+				self, "Delete Event", f"Delete event: {self.event_table_data[row][0]}?",
+				QMessageBox.Yes | QMessageBox.No
+			)
+			if confirm == QMessageBox.Yes:
+				del self.event_labels[row]
+				del self.event_times[row]
+				del self.event_table_data[row]
+				self.populate_table()
+				self.update_plot()
+	
+		# Group 2 actions
+		elif action == jump_action:
+			t = self.event_table_data[row][1]
+			if self.selected_event_marker:
+				self.selected_event_marker.remove()
+			self.selected_event_marker = self.ax.axvline(x=t, color='blue', linestyle='--', linewidth=1.2)
+			self.canvas.draw()
+	
+		elif action == pin_action:
+			t = self.event_table_data[row][1]
+			id_val = self.event_table_data[row][2]
+			marker = self.ax.plot(t, id_val, 'ro', markersize=6)[0]
+			label = self.ax.annotate(
+				f"{t:.2f} s\n{round(id_val,1)} µm",
+				xy=(t, id_val),
+				xytext=(6, 6),
+				textcoords='offset points',
+				bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1),
+				fontsize=8
+			)
+			self.pinned_points.append((marker, label))
+			self.canvas.draw_idle()
+	
+		# Group 3 actions
+		elif action == replace_with_pin_action:
+			t_event = self.event_table_data[row][1]
+			if not self.pinned_points:
+				QMessageBox.information(self, "No Pins", "There are no pinned points to use.")
+				return
+			closest_pin = min(self.pinned_points, key=lambda p: abs(p[0].get_xdata()[0] - t_event))
+			pin_time = closest_pin[0].get_xdata()[0]
+			pin_id = closest_pin[0].get_ydata()[0]
+			confirm = QMessageBox.question(
+				self, "Confirm Replacement",
+				f"Replace ID at {t_event:.2f}s with pinned value: {pin_id:.2f} µm?",
+				QMessageBox.Yes | QMessageBox.No
+			)
+			if confirm == QMessageBox.Yes:
+				self.last_replaced_event = (row, self.event_table_data[row][2])
+				self.event_table_data[row] = (
+					self.event_table_data[row][0],
+					t_event,
+					round(pin_id, 2)
+				)
+				self.populate_table()
+				self.auto_export_table()
+				print(f"🔄 Replaced ID at {t_event:.2f}s with pinned value {pin_id:.2f} µm.")
+	
+		elif action == clear_pins_action:
+			if not self.pinned_points:
+				QMessageBox.information(self, "No Pins", "There are no pins to clear.")
+				return
+			for marker, label in self.pinned_points:
+				marker.remove()
+				label.remove()
+			self.pinned_points.clear()
+			self.canvas.draw_idle()
+			print("🧹 Cleared all pins.")
+	
+	def save_recent_files(self):
+		self.settings.setValue("recentFiles", self.recent_files)
+	
+	def clear_recent_files(self):
+		self.recent_files = []
+		self.save_recent_files()
+		self.build_recent_files_menu()
+		
+	def dragEnterEvent(self, event):
+		if event.mimeData().hasUrls():
+			event.acceptProposedAction()
+	
+	def dropEvent(self, event):
+		for url in event.mimeData().urls():
+			file_path = url.toLocalFile()
+			if file_path.lower().endswith(".csv"):
+				self.load_trace_and_events(file_path)
+			elif file_path.lower().endswith(".pickle"):
+				self.load_custom_pickle_plot(file_path)
+			else:
+				QMessageBox.warning(self, "Unsupported File",
+					f"Unsupported file type:\n{file_path}")
+		
 # [K] ========================= EXPORT LOGIC (CSV, FIG) ==============================
 	def auto_export_table(self):
 		if not self.trace_file_path:
@@ -891,9 +652,15 @@ class VasoAnalyzerApp(QMainWindow):
 			return
 		try:
 			pickle_path = os.path.join(os.path.abspath(self.trace_file_path), "tracePlot_output.fig.pickle")
+			state = {
+				"trace_data": self.trace_data,
+				"event_labels": self.event_labels,
+				"event_times": self.event_times,
+				"event_table_data": self.event_table_data
+			}
 			with open(pickle_path, 'wb') as f:
-				pickle.dump(self.fig, f)
-			print(f"✔ Editable trace figure saved to:\n{pickle_path}")
+				pickle.dump(state, f)
+			print(f"✔ Editable trace figure state saved to:\n{pickle_path}")
 		except Exception as e:
 			print(f"❌ Failed to save .pickle figure:\n{e}")
 
@@ -916,6 +683,7 @@ class VasoAnalyzerApp(QMainWindow):
 					self.fig.savefig(save_path, format='svg', bbox_inches='tight')
 				else:
 					self.fig.savefig(save_path, format='tiff', dpi=600, bbox_inches='tight')
+					self.auto_export_editable_plot()
 
 				QMessageBox.information(self, "Export Complete", f"Plot exported:\n{save_path}")
 			except Exception as e:
@@ -1011,6 +779,7 @@ class PlotStyleDialog(QDialog):
 		layout.addLayout(form)
 		layout.addLayout(self.button_row('axis'))
 		self.tabs.addTab(tab, "Axis Titles")
+		tab.setObjectName("Axis Titles")
 
 	def init_tick_tab(self):
 		tab = QWidget()
@@ -1026,6 +795,7 @@ class PlotStyleDialog(QDialog):
 		layout.addLayout(form)
 		layout.addLayout(self.button_row('tick'))
 		self.tabs.addTab(tab, "Tick Labels")
+		tab.setObjectName("Tick Labels")
 
 	def init_event_tab(self):
 		tab = QWidget()
@@ -1050,6 +820,7 @@ class PlotStyleDialog(QDialog):
 		layout.addLayout(form)
 		layout.addLayout(self.button_row('event'))
 		self.tabs.addTab(tab, "Event Labels")
+		tab.setObjectName("Event Labels")
 
 	def init_pin_tab(self):
 		tab = QWidget()
@@ -1079,6 +850,7 @@ class PlotStyleDialog(QDialog):
 		layout.addLayout(form)
 		layout.addLayout(self.button_row('pin'))
 		self.tabs.addTab(tab, "Pinned Labels")
+		tab.setObjectName("Pinned Labels")
 
 	def init_line_tab(self):
 		tab = QWidget()
@@ -1093,6 +865,7 @@ class PlotStyleDialog(QDialog):
 		layout.addLayout(form)
 		layout.addLayout(self.button_row('line'))
 		self.tabs.addTab(tab, "Trace Style")
+		tab.setObjectName("Trace Style")
 
 	def button_row(self, section):
 		layout = QHBoxLayout()
@@ -1108,7 +881,6 @@ class PlotStyleDialog(QDialog):
 		return layout
 	
 	def handle_apply_tab(self, section):
-		# Only reapply current tab settings (optional expansion in future)
 		if hasattr(self.parent(), "apply_plot_style"):
 			self.parent().apply_plot_style(self.get_style())
 
