@@ -1,3 +1,6 @@
+CURRENT_VERSION = "2.5.1"
+GITHUB_REPO = "vr-oj/VasoAnalyzer"
+
 # [A] ========================= IMPORTS AND GLOBAL CONFIG ============================
 import sys, os, pickle
 import numpy as np
@@ -8,7 +11,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib import rcParams
-
+from PyQt5.QtWidgets import QTextBrowser, QVBoxLayout, QDialog, QDialogButtonBox
+import markdown
+import requests
 rcParams.update(
     {
         "axes.labelcolor": "black",
@@ -239,7 +244,7 @@ class VasoAnalyzerApp(QMainWindow):
             lambda: QMessageBox.information(
                 self,
                 "About VasoAnalyzer",
-                "VasoAnalyzer 2.5 (Python Edition)\nDeveloped for the Tykocki Lab\nhttps://github.com/vr-oj/VasoAnalyzer_2.0",
+                "VasoAnalyzer 2.5 (Python Edition)\nDeveloped for the Tykocki Lab\nhttps://github.com/vr-oj/VasoAnalyzer",
             )
         )
         help_menu.addAction(about_action)
@@ -249,6 +254,10 @@ class VasoAnalyzerApp(QMainWindow):
             lambda: os.system("open ./docs/VasoAnalyzer_User_Manual.pdf")
         )  # Adjust path for Windows
         help_menu.addAction(user_guide_action)
+
+        check_update_action = QAction("Check for Updates", self)
+        check_update_action.triggered.connect(self.check_for_updates)
+        help_menu.addAction(check_update_action)
 
     def build_recent_files_menu(self):
         self.recent_menu.clear()
@@ -372,6 +381,55 @@ class VasoAnalyzerApp(QMainWindow):
         if recent is None:
             recent = []
         self.recent_files = recent
+
+    def check_for_updates(self):
+        try:
+            response = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest")
+            if response.status_code != 200:
+                raise Exception(f"GitHub API returned {response.status_code}")
+            data = response.json()
+            latest_version = data["tag_name"].lstrip("v")
+            changelog_md = data.get("body", "").strip()
+
+            skipped = self.settings.value("skipVersion", "")
+            if latest_version == CURRENT_VERSION or latest_version == skipped:
+                QMessageBox.information(self, "Check for Updates", f"You’re already using the latest version ({CURRENT_VERSION}).")
+                return
+
+            # Convert markdown to HTML
+            changelog_html = markdown.markdown(changelog_md)
+
+            # Create a rich-text dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle(f"VasoAnalyzer {latest_version} is available!")
+
+            layout = QVBoxLayout(dialog)
+            changelog_view = QTextBrowser()
+            changelog_view.setHtml(changelog_html)
+            changelog_view.setOpenExternalLinks(True)
+            changelog_view.setMinimumSize(500, 400)
+            layout.addWidget(changelog_view)
+
+            buttons = QDialogButtonBox()
+            update_btn = buttons.addButton("Update Now", QDialogButtonBox.AcceptRole)
+            remind_btn = buttons.addButton("Remind Me Later", QDialogButtonBox.RejectRole)
+            skip_btn = buttons.addButton("Skip This Version", QDialogButtonBox.DestructiveRole)
+            layout.addWidget(buttons)
+
+            def handle_click(button):
+                if button == update_btn:
+                    import webbrowser
+                    webbrowser.open(data["html_url"])
+                elif button == skip_btn:
+                    self.settings.setValue("skipVersion", latest_version)
+                dialog.close()
+
+            buttons.clicked.connect(handle_click)
+            dialog.exec_()
+
+        except Exception as e:
+            QMessageBox.warning(self, "Update Error", f"Failed to check for updates:\n{e}")
+
 
 # [C] ========================= UI SETUP (initUI) ======================================
     def initUI(self):
