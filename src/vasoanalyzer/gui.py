@@ -1,6 +1,3 @@
-CURRENT_VERSION = "2.5.1"
-GITHUB_REPO = "vr-oj/VasoAnalyzer"
-
 # [A] ========================= IMPORTS AND GLOBAL CONFIG ============================
 import sys, os, pickle
 import numpy as np
@@ -11,9 +8,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib import rcParams
-from PyQt5.QtWidgets import QTextBrowser, QVBoxLayout, QDialog, QDialogButtonBox
-import markdown
-import requests
+
 rcParams.update(
     {
         "axes.labelcolor": "black",
@@ -55,19 +50,18 @@ from PyQt5.QtCore import Qt, QTimer, QSize, QSettings
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QStatusBar
 
+
 from vasoanalyzer.trace_loader import load_trace
 from vasoanalyzer.tiff_loader import load_tiff
 from vasoanalyzer.event_loader import load_events
 from vasoanalyzer.excel_mapper import ExcelMappingDialog, update_excel_file
 
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
-
 # [B] ========================= MAIN CLASS DEFINITION ================================
 PREVIOUS_PLOT_PATH = os.path.join(
     os.path.expanduser("~"), ".vasoanalyzer_last_plot.pickle"
 )
+
+
 class VasoAnalyzerApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -107,7 +101,7 @@ class VasoAnalyzerApp(QMainWindow):
         self.load_recent_files()
         self.setAcceptDrops(True)
         self.setStatusBar(QStatusBar(self))
-        self.unsaved_changes = False
+        self.setAcceptDrops(True)
 
         # ===== Axis + Slider State =====
         self.axis_dragging = False
@@ -183,11 +177,6 @@ class VasoAnalyzerApp(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        file_menu.addSeparator()
-        export_summary_action = QAction("Export Session Summary (PDF)", self)
-        export_summary_action.triggered.connect(self.export_session_summary_pdf)
-        file_menu.addAction(export_summary_action)
-
         # ===== EDIT MENU =====
         edit_menu = menubar.addMenu("Edit")
 
@@ -244,7 +233,7 @@ class VasoAnalyzerApp(QMainWindow):
             lambda: QMessageBox.information(
                 self,
                 "About VasoAnalyzer",
-                "VasoAnalyzer 2.5 (Python Edition)\nDeveloped for the Tykocki Lab\nhttps://github.com/vr-oj/VasoAnalyzer",
+                "VasoAnalyzer 2.5 (Python Edition)\nDeveloped for the Tykocki Lab\nhttps://github.com/vr-oj/VasoAnalyzer_2.0",
             )
         )
         help_menu.addAction(about_action)
@@ -254,10 +243,6 @@ class VasoAnalyzerApp(QMainWindow):
             lambda: os.system("open ./docs/VasoAnalyzer_User_Manual.pdf")
         )  # Adjust path for Windows
         help_menu.addAction(user_guide_action)
-
-        check_update_action = QAction("Check for Updates", self)
-        check_update_action.triggered.connect(self.check_for_updates)
-        help_menu.addAction(check_update_action)
 
     def build_recent_files_menu(self):
         self.recent_menu.clear()
@@ -280,23 +265,33 @@ class VasoAnalyzerApp(QMainWindow):
         clear_action.triggered.connect(self.clear_recent_files)
         self.recent_menu.addAction(clear_action)
 
-    # Update save_plot_pickle to include full session info
     def save_plot_pickle(self):
         try:
             state = {
-                "trace_data": self.trace_data,
-                "event_labels": self.event_labels,
-                "event_times": self.event_times,
-                "event_table_data": self.event_table_data,
-                "pinned_points": [
-                    (p.get_xdata()[0], p.get_ydata()[0]) for p, _ in self.pinned_points
-                ],
-            }
-            with open(PREVIOUS_PLOT_PATH, "wb") as f:
+            "trace_data": self.trace_data,
+            "event_labels": self.event_labels,
+            "event_times": self.event_times,
+            "event_table_data": self.event_table_data,
+            "pinned_points": [
+                (p.get_xdata()[0], p.get_ydata()[0]) for p, _ in self.pinned_points
+            ],
+            "grid_visible": self.grid_visible,
+            "xlim": self.ax.get_xlim(),
+            "ylim": self.ax.get_ylim(),
+            "xlabel": self.ax.get_xlabel(),
+            "ylabel": self.ax.get_ylabel(),
+            "plot_style": self.get_current_plot_style(),
+        }
+
+            pickle_path = os.path.join(
+                os.path.abspath(self.trace_file_path or "."), "tracePlot_output.fig.pickle"
+            )
+            with open(pickle_path, "wb") as f:
                 pickle.dump(state, f)
-            print(f"✅ Full session saved to: {PREVIOUS_PLOT_PATH}")
+
+            print(f"✔ Session state saved to:\n{pickle_path}")
         except Exception as e:
-            print(f"❌ Failed to save previous plot state: {e}")
+            print(f"❌ Failed to save session state:\n{e}")
 
     # Update reopen_previous_plot to reload all elements
     def reopen_previous_plot(self):
@@ -382,56 +377,7 @@ class VasoAnalyzerApp(QMainWindow):
             recent = []
         self.recent_files = recent
 
-    def check_for_updates(self):
-        try:
-            response = requests.get(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest")
-            if response.status_code != 200:
-                raise Exception(f"GitHub API returned {response.status_code}")
-            data = response.json()
-            latest_version = data["tag_name"].lstrip("v")
-            changelog_md = data.get("body", "").strip()
-
-            skipped = self.settings.value("skipVersion", "")
-            if latest_version == CURRENT_VERSION or latest_version == skipped:
-                QMessageBox.information(self, "Check for Updates", f"You’re already using the latest version ({CURRENT_VERSION}).")
-                return
-
-            # Convert markdown to HTML
-            changelog_html = markdown.markdown(changelog_md)
-
-            # Create a rich-text dialog
-            dialog = QDialog(self)
-            dialog.setWindowTitle(f"VasoAnalyzer {latest_version} is available!")
-
-            layout = QVBoxLayout(dialog)
-            changelog_view = QTextBrowser()
-            changelog_view.setHtml(changelog_html)
-            changelog_view.setOpenExternalLinks(True)
-            changelog_view.setMinimumSize(500, 400)
-            layout.addWidget(changelog_view)
-
-            buttons = QDialogButtonBox()
-            update_btn = buttons.addButton("Update Now", QDialogButtonBox.AcceptRole)
-            remind_btn = buttons.addButton("Remind Me Later", QDialogButtonBox.RejectRole)
-            skip_btn = buttons.addButton("Skip This Version", QDialogButtonBox.DestructiveRole)
-            layout.addWidget(buttons)
-
-            def handle_click(button):
-                if button == update_btn:
-                    import webbrowser
-                    webbrowser.open(data["html_url"])
-                elif button == skip_btn:
-                    self.settings.setValue("skipVersion", latest_version)
-                dialog.close()
-
-            buttons.clicked.connect(handle_click)
-            dialog.exec_()
-
-        except Exception as e:
-            QMessageBox.warning(self, "Update Error", f"Failed to check for updates:\n{e}")
-
-
-# [C] ========================= UI SETUP (initUI) ======================================
+    # [C] ========================= UI SETUP (initUI) ======================================
     def initUI(self):
         self.setStyleSheet(
             """
@@ -666,16 +612,7 @@ class VasoAnalyzerApp(QMainWindow):
         self.event_table.customContextMenuRequested.connect(
             self.show_event_table_context_menu
         )
-        self.event_table.setAlternatingRowColors(True)
-        self.event_table.setStyleSheet(
-            """
-            QTableWidget {
-                alternate-background-color: #F0F0F0;
-                background-color: white;
-                color: black;
-            }
-        """
-        )
+
         snapshot_layout = QVBoxLayout()
         snapshot_layout.setSpacing(4)
         snapshot_layout.setContentsMargins(0, 0, 0, 0)
@@ -722,7 +659,7 @@ class VasoAnalyzerApp(QMainWindow):
             lambda event: QTimer.singleShot(100, lambda: self.on_mouse_release(event)),
         )
 
-# [D] ========================= FILE LOADERS: TRACE / EVENTS / TIFF =====================
+    # [D] ========================= FILE LOADERS: TRACE / EVENTS / TIFF =====================
     def load_trace_and_events(self, file_path=None):
         if file_path is None:
             file_path, _ = QFileDialog.getOpenFileName(
@@ -738,7 +675,6 @@ class VasoAnalyzerApp(QMainWindow):
                 trace_filename = os.path.basename(file_path)
                 self.trace_file_label.setText(f"🧪 {trace_filename}")
                 self.update_plot()
-                self.auto_export_editable_plot()
             except Exception as e:
                 QMessageBox.critical(
                     self, "Trace Load Error", f"Failed to load trace file:\n{e}"
@@ -916,71 +852,74 @@ class VasoAnalyzerApp(QMainWindow):
                 row, 2, QTableWidgetItem(str(df.iloc[row].get("ID (µm)", "")))
             )
 
-    def load_custom_pickle_plot(self, file_path=None):
-        if self.trace_data is not None:
-            confirm = QMessageBox.question(
-                self,
-                "Overwrite Current Session?",
-                "A session is already loaded. Do you want to discard it and open a saved one?",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            if confirm != QMessageBox.Yes:
-                return
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().endswith(".fig.pickle"):
+                    event.accept()
+                    return
+        event.ignore()
 
-        if file_path is None:
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, "Open Saved Plot (.fig.pickle)", "", "Pickle Files (*.pickle *.pkl)"
-            )
-            if not file_path:
-                return
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            file_path = url.toLocalFile()
+            if file_path.endswith(".fig.pickle"):
+                self.load_pickle_session(file_path)
 
+    def load_pickle_session(self, file_path):
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 state = pickle.load(f)
 
-            # Validate
-            required_keys = {"trace_data", "event_labels", "event_times", "event_table_data"}
-            if not required_keys.issubset(set(state.keys())):
-                QMessageBox.critical(
-                    self, "Invalid File",
-                    "This file does not contain a valid VasoAnalyzer session. Try another file."
-                )
-                return
+            # Restore basic session state
+            self.trace_data = state.get("trace_data", None)
+            self.event_labels = state.get("event_labels", [])
+            self.event_times = state.get("event_times", [])
+            self.event_table_data = state.get("event_table_data", [])
 
-            self.clear_current_session()
+            # Temporarily store plot style before update_plot() wipes things
+            plot_style = state.get("plot_style", None)
 
-            self.trace_data = state.get("trace_data")
-            self.event_labels = state.get("event_labels")
-            self.event_times = state.get("event_times")
-            self.event_table_data = state.get("event_table_data")
-
-            self.fig.clf()
-            self.ax = self.fig.add_subplot(111)
+            # Redraw plot (this resets styles, so it must come before applying style)
             self.update_plot()
 
-            # Restore pinned points if available
+            # Restore axis labels, limits, grid
+            self.ax.set_xlabel(state.get("xlabel", "Time (s)"))
+            self.ax.set_ylabel(state.get("ylabel", "Inner Diameter (µm)"))
+            self.ax.set_xlim(*state.get("xlim", self.ax.get_xlim()))
+            self.ax.set_ylim(*state.get("ylim", self.ax.get_ylim()))
+            self.grid_visible = state.get("grid_visible", True)
+            self.ax.grid(self.grid_visible, color="#CCC")
+
+            # Re-plot pinned points
             self.pinned_points.clear()
             for x, y in state.get("pinned_points", []):
-                marker = self.ax.plot(x, y, 'ro', markersize=6)[0]
+                marker = self.ax.plot(x, y, "ro", markersize=6)[0]
                 label = self.ax.annotate(
                     f"{x:.2f} s\n{y:.1f} µm",
                     xy=(x, y),
                     xytext=(6, 6),
-                    textcoords='offset points',
+                    textcoords="offset points",
                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1),
-                    fontsize=8
+                    fontsize=8,
                 )
                 self.pinned_points.append((marker, label))
 
-            self.trace_file_label.setText(f"🧪 Restored: {os.path.basename(file_path)}")
-            self.excel_btn.setEnabled(True)
+            # Apply saved style LAST so it overrides any plot resets
+            if plot_style:
+                self.apply_plot_style(plot_style)
+
+            # Final UI updates
             self.canvas.draw_idle()
-            print(f"✅ Session loaded from:\n{file_path}")
+            self.populate_table()
+            self.trace_file_label.setText(f"Restored from: {os.path.basename(file_path)}")
+            self.statusBar().showMessage("Session restored successfully.")
+            print("✅ Session reloaded with full metadata.")
 
         except Exception as e:
-            QMessageBox.critical(self, "Load Failed", f"Could not open .pickle file:\n{e}")
+            QMessageBox.critical(self, "Load Failed", f"Error loading session:\n{e}")
 
-# [E] ========================= PLOTTING AND EVENT SYNC ============================
+    # [E] ========================= PLOTTING AND EVENT SYNC ============================
     def update_plot(self):
         if self.trace_data is None:
             return
@@ -1050,7 +989,7 @@ class VasoAnalyzerApp(QMainWindow):
 
             self.populate_table()
             self.auto_export_table()
-        self.update_event_label_positions()
+
         self.canvas.draw_idle()
 
     def scroll_plot(self):
@@ -1107,7 +1046,6 @@ class VasoAnalyzerApp(QMainWindow):
 
         self.auto_export_table()
         print(f"✏️ ID updated at {time:.2f}s → {new_val:.2f} µm")
-        self.unsaved_changes = True
 
     def table_row_clicked(self, row, col):
         if not self.event_table_data:
@@ -1229,7 +1167,6 @@ class VasoAnalyzerApp(QMainWindow):
                 self.populate_table()
                 self.auto_export_table()
                 print(f"✅ Replaced value at {event_time:.2f}s with {y:.1f} µm.")
-                self.unsaved_changes = True
 
     def prompt_add_event(self, x, y):
         if not self.event_table_data:
@@ -1280,7 +1217,6 @@ class VasoAnalyzerApp(QMainWindow):
         self.populate_table()
         self.auto_export_table()
         print(f"➕ Inserted new event: {new_entry}")
-        self.unsaved_changes = True
 
     def undo_last_replacement(self):
         if self.last_replaced_event is None:
@@ -1298,7 +1234,6 @@ class VasoAnalyzerApp(QMainWindow):
             self, "Undo", f"Restored value for '{label}' at {time:.2f}s."
         )
         self.last_replaced_event = None
-        self.unsaved_changes = True
 
     # [H] ========================= HOVER LABEL AND CURSOR SYNC ===========================
     def update_hover_label(self, event):
@@ -1363,11 +1298,12 @@ class VasoAnalyzerApp(QMainWindow):
         else:
             self.scroll_slider.hide()
 
- # [J] ========================= PLOT STYLE EDITOR ================================
+    # [J] ========================= PLOT STYLE EDITOR ================================
     def open_plot_style_editor(self, tab_name=None):
         from PyQt5.QtWidgets import QDialog
 
         dialog = PlotStyleDialog(self)
+        self.plot_style_dialog = dialog
 
         if tab_name:
             index = dialog.tabs.indexOf(dialog.tabs.findChild(QWidget, tab_name))
@@ -1432,16 +1368,14 @@ class VasoAnalyzerApp(QMainWindow):
         self.canvas.draw_idle()
 
     def start_new_analysis(self):
-        if self.unsaved_changes:
-            confirm = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                "You have unsaved changes. Start new analysis anyway?",
-                QMessageBox.Yes | QMessageBox.No,
-            )
-            if confirm != QMessageBox.Yes:
-                return
-        self.clear_current_session()
+        confirm = QMessageBox.question(
+            self,
+            "Start New Analysis",
+            "Clear current session and start fresh?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if confirm == QMessageBox.Yes:
+            self.clear_current_session()
 
     def clear_current_session(self):
         self.trace_data = None
@@ -1596,93 +1530,13 @@ class VasoAnalyzerApp(QMainWindow):
         self.save_recent_files()
         self.build_recent_files_menu()
 
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        for url in event.mimeData().urls():
-            file_path = url.toLocalFile()
-            if file_path.lower().endswith(".csv"):
-                self.load_trace_and_events(file_path)
-            elif file_path.lower().endswith(".pickle"):
-                self.load_custom_pickle_plot(file_path)
-            else:
-                QMessageBox.warning(
-                    self, "Unsupported File", f"Unsupported file type:\n{file_path}"
-                )
-
-    def closeEvent(self, event):
-        if self.unsaved_changes:
-            confirm = QMessageBox.question(
-                self,
-                "Unsaved Changes",
-                "You have unsaved changes. Quit anyway?",
-                QMessageBox.Yes | QMessageBox.No,
-            )
-            if confirm != QMessageBox.Yes:
-                event.ignore()
-                return
-        event.accept()
-
-    def export_session_summary_pdf(self):
-        if not self.trace_data or not self.event_table_data:
-            QMessageBox.warning(self, "No Data", "No session data to export.")
-            return
-
-        save_path, _ = QFileDialog.getSaveFileName(
-            self, "Save PDF", "session_summary.pdf", "PDF Files (*.pdf)"
-        )
-        if not save_path:
-            return
-
+    def get_current_plot_style(self):
         try:
-            from datetime import datetime
+            return self.plot_style_dialog.get_style()
+        except AttributeError:
+            return None
 
-            c = canvas.Canvas(save_path, pagesize=letter)
-            width, height = letter
-
-            # Header
-            c.setFont("Helvetica-Bold", 16)
-            c.drawString(1 * inch, height - 1 * inch, "VasoAnalyzer Session Summary")
-
-            # Metadata
-            c.setFont("Helvetica", 10)
-            c.drawString(1 * inch, height - 1.3 * inch, f"App Version: VasoAnalyzer 2.5")
-            c.drawString(1 * inch, height - 1.5 * inch, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            c.drawString(1 * inch, height - 1.7 * inch, f"Trace File: {os.path.basename(self.trace_file_path or '')}")
-
-            # Save plot image temporarily
-            img_path = os.path.join(os.path.abspath(self.trace_file_path or "."), "temp_plot_image.png")
-            self.fig.savefig(img_path, dpi=300)
-
-            # Insert plot image
-            c.drawImage(img_path, 1 * inch, height - 5.5 * inch, width=6 * inch, height=3 * inch)
-
-            # Table header
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(1 * inch, height - 6 * inch, "Event Table")
-
-            # Table content
-            c.setFont("Helvetica", 10)
-            y = height - 6.3 * inch
-            for label, t, d in self.event_table_data:
-                c.drawString(1 * inch, y, f"{label:<10}   {t:.2f} s   {d:.2f} µm")
-                y -= 0.2 * inch
-                if y < 1 * inch:
-                    c.showPage()
-                    y = height - 1 * inch
-
-            c.save()
-            if os.path.exists(img_path):
-                os.remove(img_path)
-
-            QMessageBox.information(self, "PDF Exported", f"Session summary saved to:\n{save_path}")
-
-        except Exception as e:
-            QMessageBox.critical(self, "Export Failed", str(e))
-        
-# [K] ========================= EXPORT LOGIC (CSV, FIG) ==============================
+    # [K] ========================= EXPORT LOGIC (CSV, FIG) ==============================
     def auto_export_table(self):
         if not self.trace_file_path:
             print("⚠️ No trace path set. Cannot export event table.")
@@ -1706,7 +1560,6 @@ class VasoAnalyzerApp(QMainWindow):
                 start_row=3,
                 column_letter=self.excel_auto_column,
             )
-        self.unsaved_changes = False
 
     def auto_export_editable_plot(self):
         if not self.trace_file_path:
