@@ -8,6 +8,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib import rcParams
+from functools import partial
 
 rcParams.update(
     {
@@ -50,18 +51,28 @@ from PyQt5.QtCore import Qt, QTimer, QSize, QSettings
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QStatusBar
 
+import requests
+def check_for_new_version(current_version="v2.5.1"):
+    try:
+        response = requests.get("https://api.github.com/repos/vr-oj/VasoAnalyzer_2.0/releases/latest")
+        if response.status_code == 200:
+            latest_version = response.json().get("tag_name", "")
+            if latest_version and latest_version != current_version:
+                return latest_version
+    except Exception as e:
+        print(f"Update check failed: {e}")
+    return None
 
 from vasoanalyzer.trace_loader import load_trace
 from vasoanalyzer.tiff_loader import load_tiff
 from vasoanalyzer.event_loader import load_events
 from vasoanalyzer.excel_mapper import ExcelMappingDialog, update_excel_file
+from vasoanalyzer.version_checker import check_for_new_version
 
 # [B] ========================= MAIN CLASS DEFINITION ================================
 PREVIOUS_PLOT_PATH = os.path.join(
     os.path.expanduser("~"), ".vasoanalyzer_last_plot.pickle"
 )
-
-
 class VasoAnalyzerApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -113,6 +124,7 @@ class VasoAnalyzerApp(QMainWindow):
         # ===== Build UI =====
         self.create_menubar()
         self.initUI()
+        self.check_for_updates_at_startup()
 
     def update_recent_files_menu(self):
         self.recent_menu.clear()
@@ -124,7 +136,7 @@ class VasoAnalyzerApp(QMainWindow):
         for path in self.recent_files:
             action = QAction(os.path.basename(path), self)
             action.setToolTip(path)
-            action.triggered.connect(lambda _, p=path: self.load_trace_and_events(path))
+            action.triggered.connect(partial(self.load_trace_and_events, path))
             self.recent_menu.addAction(action)
 
     def icon_path(self, filename):
@@ -141,7 +153,7 @@ class VasoAnalyzerApp(QMainWindow):
 
         open_trace_action = QAction("Open Trace + Events", self)
         open_trace_action.setShortcut("Ctrl+O")
-        open_trace_action.triggered.connect(self.load_trace_and_events)
+        open_trace_action.triggered.connect(lambda: self.load_trace_and_events())
         file_menu.addAction(open_trace_action)
 
         open_tiff_action = QAction("Open _Result.tiff", self)
@@ -255,9 +267,7 @@ class VasoAnalyzerApp(QMainWindow):
             label = os.path.basename(path)
             action = QAction(label, self)
             action.setToolTip(path)
-            action.triggered.connect(
-                lambda checked, p=path: self.load_trace_and_events(p)
-            )
+            action.triggered.connect(partial(self.load_trace_and_events, path))
             self.recent_menu.addAction(action)
 
         self.recent_menu.addSeparator()
@@ -280,7 +290,25 @@ class VasoAnalyzerApp(QMainWindow):
             "ylim": self.ax.get_ylim(),
             "xlabel": self.ax.get_xlabel(),
             "ylabel": self.ax.get_ylabel(),
-            "plot_style": self.get_current_plot_style(),
+            "plot_style": getattr(self, "plot_style_dialog", None).get_style()
+                if hasattr(self, "plot_style_dialog")
+                else {
+                    "axis_font_size": 14,
+                    "axis_font_family": "Arial",
+                    "axis_bold": False,
+                    "axis_italic": False,
+                    "tick_font_size": 12,
+                    "event_font_size": 10,
+                    "event_font_family": "Arial",
+                    "event_bold": False,
+                    "event_italic": False,
+                    "pin_font_size": 10,
+                    "pin_font_family": "Arial",
+                    "pin_bold": False,
+                    "pin_italic": False,
+                    "pin_size": 6,
+                    "line_width": 2,
+                },
         }
 
             pickle_path = os.path.join(
@@ -293,64 +321,18 @@ class VasoAnalyzerApp(QMainWindow):
         except Exception as e:
             print(f"❌ Failed to save session state:\n{e}")
 
+            with open(PREVIOUS_PLOT_PATH, "wb") as f:
+                pickle.dump(state, f)
+
     # Update reopen_previous_plot to reload all elements
     def reopen_previous_plot(self):
-        if not hasattr(self, "fig") or self.fig is None:
-            self.fig = Figure(figsize=(8, 4), facecolor="white")
-            self.canvas = FigureCanvas(self.fig)
-            self.ax = self.fig.add_subplot(111)
         if not os.path.exists(PREVIOUS_PLOT_PATH):
             QMessageBox.warning(
                 self, "No Previous Plot", "No previously saved plot was found."
             )
             return
 
-        try:
-            with open(PREVIOUS_PLOT_PATH, "rb") as f:
-                state = pickle.load(f)
-
-                if "fig" in state:
-                    QMessageBox.critical(
-                        self,
-                        "Invalid Save File",
-                        "This save file is from an older version and contains a full matplotlib figure object, "
-                        "which is not supported.\n\nPlease delete the file and save a new plot.",
-                    )
-                    return
-
-            self.trace_data = state.get("trace_data", None)
-            self.event_labels = state.get("event_labels", [])
-            self.event_times = state.get("event_times", [])
-            self.event_table_data = state.get("event_table_data", [])
-
-            self.fig.clf()
-            self.canvas.figure = self.fig
-            self.ax = self.fig.add_subplot(111)
-            self.update_plot()
-
-            # Recreate pinned markers
-            self.pinned_points.clear()
-            for x, y in state.get("pinned_points", []):
-                marker = self.ax.plot(x, y, "ro", markersize=6)[0]
-                label = self.ax.annotate(
-                    f"{x:.2f} s\n{y:.1f} µm",
-                    xy=(x, y),
-                    xytext=(6, 6),
-                    textcoords="offset points",
-                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1),
-                    fontsize=8,
-                )
-                self.pinned_points.append((marker, label))
-
-            self.trace_file_label.setText("🧪 (Restored Plot)")
-            self.excel_btn.setEnabled(bool(self.event_table_data))
-            self.canvas.draw_idle()
-            print("🔁 Full session restored successfully.")
-
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Reopen Failed", f"Failed to reopen previous plot:\n{e}"
-            )
+        self.load_pickle_session(PREVIOUS_PLOT_PATH)
 
     def rebuild_top_row_with_new_toolbar(self):
         top_row_layout = QHBoxLayout()
@@ -377,7 +359,16 @@ class VasoAnalyzerApp(QMainWindow):
             recent = []
         self.recent_files = recent
 
-    # [C] ========================= UI SETUP (initUI) ======================================
+    def check_for_updates_at_startup(self):
+    latest = check_for_new_version("v2.5.1")
+    if latest:
+        QMessageBox.information(
+            self,
+            "Update Available",
+            f"A new version ({latest}) of VasoAnalyzer is available!\nVisit GitHub to download the latest release.",
+        )
+
+# [C] ========================= UI SETUP (initUI) ======================================
     def initUI(self):
         self.setStyleSheet(
             """
@@ -659,7 +650,7 @@ class VasoAnalyzerApp(QMainWindow):
             lambda event: QTimer.singleShot(100, lambda: self.on_mouse_release(event)),
         )
 
-    # [D] ========================= FILE LOADERS: TRACE / EVENTS / TIFF =====================
+# [D] ========================= FILE LOADERS: TRACE / EVENTS / TIFF =====================
     def load_trace_and_events(self, file_path=None):
         if file_path is None:
             file_path, _ = QFileDialog.getOpenFileName(
@@ -668,69 +659,69 @@ class VasoAnalyzerApp(QMainWindow):
             if not file_path:
                 return
 
+        try:
+            # Load trace
+            self.trace_data = load_trace(file_path)
+            self.trace_file_path = os.path.dirname(file_path)
+            trace_filename = os.path.basename(file_path)
+            self.trace_file_label.setText(f"🧪 {trace_filename}")
+            self.update_plot()
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Trace Load Error", f"Failed to load trace file:\n{e}"
+            )
+            return
+
+        # Store in recent files
+        if file_path not in self.recent_files:
+            self.recent_files = [file_path] + self.recent_files[:4]  # Keep max 5
+            self.settings.setValue("recentFiles", self.recent_files)
+            self.update_recent_files_menu()
+
+        # Try to load matching _table.csv file
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        event_filename = f"{base_name}_table.csv"
+        event_path = os.path.join(self.trace_file_path, event_filename)
+
+        if os.path.exists(event_path):
             try:
-                # Load trace
-                self.trace_data = load_trace(file_path)
-                self.trace_file_path = os.path.dirname(file_path)
-                trace_filename = os.path.basename(file_path)
-                self.trace_file_label.setText(f"🧪 {trace_filename}")
-                self.update_plot()
-            except Exception as e:
-                QMessageBox.critical(
-                    self, "Trace Load Error", f"Failed to load trace file:\n{e}"
-                )
-                return
+                self.event_labels, self.event_times = load_events(event_path)
 
-            # Store in recent files
-            if file_path not in self.recent_files:
-                self.recent_files = [file_path] + self.recent_files[:4]  # Keep max 5
-                self.settings.setValue("recentFiles", self.recent_files)
-                self.update_recent_files_menu()
+                # Generate table data by sampling diameters
+                diam_trace = self.trace_data["Inner Diameter"]
+                time_trace = self.trace_data["Time (s)"]
+                self.event_table_data = []
 
-            # Try to load matching _table.csv file
-            base_name = os.path.splitext(trace_filename)[0]
-            event_filename = f"{base_name}_table.csv"
-            event_path = os.path.join(self.trace_file_path, event_filename)
-
-            if os.path.exists(event_path):
-                try:
-                    self.event_labels, self.event_times = load_events(event_path)
-
-                    # Generate table data by sampling diameters
-                    diam_trace = self.trace_data["Inner Diameter"]
-                    time_trace = self.trace_data["Time (s)"]
-                    self.event_table_data = []
-
-                    for i in range(len(self.event_times)):
-                        if i < len(self.event_times) - 1:
-                            t_sample = self.event_times[i + 1] - 2  # 2 sec before next
-                            idx_pre = np.argmin(np.abs(time_trace - t_sample))
-                        else:
-                            idx_pre = -1
-                        diam_pre = diam_trace.iloc[idx_pre]
-                        self.event_table_data.append(
-                            (
-                                self.event_labels[i],
-                                round(self.event_times[i], 2),
-                                round(diam_pre, 2),
-                            )
+                for i in range(len(self.event_times)):
+                    if i < len(self.event_times) - 1:
+                        t_sample = self.event_times[i + 1] - 2  # 2 sec before next
+                        idx_pre = np.argmin(np.abs(time_trace - t_sample))
+                    else:
+                        idx_pre = -1
+                    diam_pre = diam_trace.iloc[idx_pre]
+                    self.event_table_data.append(
+                        (
+                            self.event_labels[i],
+                            round(self.event_times[i], 2),
+                            round(diam_pre, 2),
                         )
-
-                    self.populate_table()
-                    self.update_plot()
-                    self.excel_btn.setEnabled(True)
-                except Exception as e:
-                    QMessageBox.warning(
-                        self,
-                        "Event Load Error",
-                        f"Trace loaded, but failed to load events:\n{e}",
                     )
-            else:
-                QMessageBox.information(
+
+                self.populate_table()
+                self.update_plot()
+                self.excel_btn.setEnabled(True)
+            except Exception as e:
+                QMessageBox.warning(
                     self,
-                    "Event File Not Found",
-                    f"No matching event file found:\n{event_filename}",
+                    "Event Load Error",
+                    f"Trace loaded, but failed to load events:\n{e}",
                 )
+        else:
+            QMessageBox.information(
+                self,
+                "Event File Not Found",
+                f"No matching event file found:\n{event_filename}",
+            )
 
     def load_snapshot(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -879,6 +870,9 @@ class VasoAnalyzerApp(QMainWindow):
 
             # Temporarily store plot style before update_plot() wipes things
             plot_style = state.get("plot_style", None)
+            if plot_style:
+                self.apply_plot_style(plot_style)
+            self.canvas.draw_idle()
 
             # Redraw plot (this resets styles, so it must come before applying style)
             self.update_plot()
@@ -1398,7 +1392,6 @@ class VasoAnalyzerApp(QMainWindow):
         self.snapshot_label.hide()
         self.excel_btn.setEnabled(False)
         print("🧼 Cleared session.")
-        self.statusBar().showMessage("Started new analysis.")
 
     def show_event_table_context_menu(self, position):
         index = self.event_table.indexAt(position)
@@ -1534,7 +1527,24 @@ class VasoAnalyzerApp(QMainWindow):
         try:
             return self.plot_style_dialog.get_style()
         except AttributeError:
-            return None
+            # Return default style dict manually
+            return {
+                "axis_font_size": 14,
+                "axis_font_family": "Arial",
+                "axis_bold": False,
+                "axis_italic": False,
+                "tick_font_size": 12,
+                "event_font_size": 10,
+                "event_font_family": "Arial",
+                "event_bold": False,
+                "event_italic": False,
+                "pin_font_size": 10,
+                "pin_font_family": "Arial",
+                "pin_bold": False,
+                "pin_italic": False,
+                "pin_size": 6,
+                "line_width": 2,
+            }
 
     # [K] ========================= EXPORT LOGIC (CSV, FIG) ==============================
     def auto_export_table(self):
